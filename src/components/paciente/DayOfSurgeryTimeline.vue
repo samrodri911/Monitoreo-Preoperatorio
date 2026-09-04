@@ -1,65 +1,85 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import type { MaterialEducativo } from '../../types/database.types';
 import { ClipboardCheck, Shirt, Stethoscope, Bed, Home, CheckCircle2 } from 'lucide-vue-next';
 
-const steps = [
+const props = defineProps<{
+  materiales?: MaterialEducativo[];
+}>();
+
+// Pasos por defecto si no vienen dinámicos de la DB
+const defaultSteps = [
   {
     step: 1,
     time: '2 horas antes',
-    title: 'Admisión y Registro Seguro',
-    description: 'Llegas a la clínica acompañado. En recepción revisan tus documentos, te colocan el brazalete con tu nombre y te asignan tu casillero seguro.',
+    title: '1. Ingreso y Admisión',
+    description: 'Llegas a la clínica con tu acompañante. En recepción revisan tus documentos (cédula, orden médica y exámenes prequirúrgicos), te colocan tu brazalete de identificación clínica y te asignan tu casillero o habitación.',
     icon: ClipboardCheck,
-    color: 'teal',
   },
   {
     step: 2,
     time: '1 hora antes',
-    title: 'Preparación Prequirúrgica',
-    description: 'Pasas al área vestier y te pones la bata cómoda. La enfermera te canaliza una pequeña vía para suero e hidratación. Conocerás a tu anestesiólogo.',
+    title: '2. Preparación Inmediata',
+    description: 'Pasas al área vestier y te pones la bata cómoda y gorro antiséptico. La enfermera canaliza una vía venosa pequeña en tu brazo para hidratación. El anestesiólogo te saludará y responderá tus preguntas.',
     icon: Shirt,
-    color: 'teal',
   },
   {
     step: 3,
     time: 'Hora de la Cirugía',
-    title: 'Paso a Quirófano',
-    description: 'Ingresas a una sala limpia y aclimatada. El equipo médico se presenta. El anestesiólogo te administrará medicación relajante y una mascarilla de oxígeno: te quedarás dormido en segundos.',
+    title: '3. Entrada a Quirófano',
+    description: 'Ingresas a la sala quirúrgica climatizada. El equipo se presenta. El anestesiólogo te colocará una mascarilla de oxígeno suave y medicación relajante por la vena: te quedarás dormido en segundos sin sentir dolor.',
     icon: Stethoscope,
-    color: 'emerald',
   },
   {
     step: 4,
     time: 'Posoperatorio Inmediato',
-    title: 'Sala de Recuperación (URPA)',
-    description: 'Despertarás arropado con mantas térmicas y acompañado por una enfermera. Te administraremos analgésicos inmediatos para que no sientas dolor alguno.',
+    title: '4. Sala de Recuperación (URPA)',
+    description: 'Despertarás arropado con mantas térmicas confortables y acompañado por una enfermera. Te administraremos analgésicos inmediatos para asegurar tu total comodidad.',
     icon: Bed,
-    color: 'teal',
   },
   {
     step: 5,
     time: 'Mismo día',
-    title: 'Alta Médica y Regreso a Casa',
-    description: 'Una vez toleres un vaso de líquido y puedas caminar con apoyo, el cirujano te entregará tu fórmula médica y te irás a descansar a casa con tu familia.',
+    title: '5. Criterios de Alta y Regreso',
+    description: 'Una vez toleres un vaso de líquido y puedas caminar con asistencia, el cirujano firmará tu alta con las pautas domiciliarias. Saldrás acompañado por tu familiar en transporte privado.',
     icon: Home,
-    color: 'teal',
   },
 ];
+
+const steps = computed(() => {
+  const materialesRecorrido = props.materiales?.filter(m => m.categoria === 'recorrido');
+  if (materialesRecorrido && materialesRecorrido.length > 0) {
+    const sorted = [...materialesRecorrido].sort((a, b) => a.orden_visualizacion - b.orden_visualizacion);
+    const icons = [ClipboardCheck, Shirt, Stethoscope, Bed, Home];
+    return sorted.map((mat, index) => ({
+      step: index + 1,
+      time: index === 0 ? '2 horas antes' : index === 1 ? '1 hora antes' : index === 2 ? 'En quirófano' : index === 3 ? 'En URPA' : 'Alta médica',
+      title: mat.titulo,
+      description: mat.contenido_markdown || mat.descripcion_corta,
+      icon: icons[index % icons.length],
+    }));
+  }
+  return defaultSteps;
+});
 </script>
 
 <template>
-  <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+  <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+    
+    <!-- Cabecera -->
     <div class="border-b border-slate-100 pb-4">
       <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 mb-2">
         <CheckCircle2 class="w-3.5 h-3.5" />
-        Previsibilidad y Reducción del Estrés
+        Previsibilidad y Reducción del Estrés (RD1)
       </div>
-      <h3 class="text-xl font-bold text-slate-900">¿Qué pasará minuto a minuto el día de tu cirugía?</h3>
+      <h3 class="text-2xl font-bold text-slate-900">El Recorrido de tu Cirugía Paso a Paso</h3>
       <p class="text-sm text-slate-600 mt-1">
-        Conoce el recorrido seguro dentro de la clínica para que nada te tome por sorpresa.
+        Conoce cada estación del hospital para que nada te tome por sorpresa, desde la admisión hasta tu regreso a casa.
       </p>
     </div>
 
     <!-- Timeline Vertical de Estaciones -->
-    <div class="relative pl-6 sm:pl-8 space-y-8 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-teal-200">
+    <div class="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-teal-200">
       
       <div
         v-for="st in steps"
@@ -68,27 +88,28 @@ const steps = [
       >
         <!-- Icono / Badge de Paso -->
         <div
-          class="absolute -left-6 sm:-left-8 top-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-white flex items-center justify-center text-white font-bold text-xs shadow-sm"
+          class="absolute -left-6 sm:-left-8 top-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-white flex items-center justify-center text-white font-bold text-xs shadow-md transition-transform group-hover:scale-110"
           :class="st.step === 3 ? 'bg-emerald-600 ring-4 ring-emerald-100' : 'bg-teal-600 ring-4 ring-teal-100'"
         >
           {{ st.step }}
         </div>
 
-        <!-- Contenido de la Estación -->
-        <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/80 hover:bg-teal-50/40 hover:border-teal-300 transition-colors">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
-            <h4 class="text-base font-bold text-slate-900 flex items-center gap-2">
-              <component :is="st.icon" class="w-4 h-4 text-teal-600 flex-shrink-0" />
+        <!-- Tarjeta de la Estación -->
+        <div class="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80 hover:bg-teal-50/40 hover:border-teal-300 transition-colors space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h4 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <component :is="st.icon" class="w-5 h-5 text-teal-600 flex-shrink-0" />
               {{ st.title }}
             </h4>
-            <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-white text-teal-800 border border-slate-200">
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-white text-teal-800 border border-slate-200 shadow-2xs">
               {{ st.time }}
             </span>
           </div>
-          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          <p class="text-sm text-slate-600 leading-relaxed">
             {{ st.description }}
           </p>
         </div>
+
       </div>
 
     </div>

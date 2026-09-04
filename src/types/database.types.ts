@@ -1,7 +1,7 @@
 export type CirugiaEstado = 'programada' | 'en_preparacion' | 'cancelada' | 'realizada';
 export type CheckinEstado = 'pendiente' | 'completado' | 'omitido';
 export type AlertaNivel = 'verde' | 'amarillo' | 'rojo';
-export type CategoriaMaterial = 'que_esperar' | 'preparacion_fisica' | 'tecnica_quirurgica' | 'cuidados_generales' | 'guia_maleta';
+export type CategoriaMaterial = 'que_esperar' | 'preparacion_fisica' | 'tecnica_quirurgica' | 'cuidados_generales' | 'guia_maleta' | 'recorrido' | 'faq';
 export type TipoRecurso = 'video' | 'imagen' | 'infografia' | 'articulo' | 'pdf';
 
 export interface Paciente {
@@ -18,6 +18,12 @@ export interface Cirugia {
   id: string;
   paciente_id: string;
   tipo_cirugia: string;
+  nombre_sencillo?: string | null;
+  duracion_estimada?: string | null;
+  tipo_anestesia?: string | null;
+  sensacion_anestesia?: string | null;
+  tiempo_recuperacion_sala?: string | null;
+  dias_incapacidad_estimados?: string | null;
   fecha_programada: string;
   estado: CirugiaEstado;
   created_at: string;
