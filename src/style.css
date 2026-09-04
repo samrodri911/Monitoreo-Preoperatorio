@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased selection:bg-teal-500 selection:text-white;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Clases de apoyo para alta accesibilidad (WCAG 2.1 AA) */
+.text-accessible-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.focus-ring {
+  @apply focus:outline-none focus:ring-4 focus:ring-teal-500/40 focus:border-teal-600;
+}
