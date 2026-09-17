@@ -10,6 +10,7 @@ import InfographicViewer from '../components/paciente/InfographicViewer.vue';
 import DayOfSurgeryTimeline from '../components/paciente/DayOfSurgeryTimeline.vue';
 import HospitalBagChecklist from '../components/paciente/HospitalBagChecklist.vue';
 import FaqAccordion from '../components/paciente/FaqAccordion.vue';
+import ChatAssistant from '../components/paciente/ChatAssistant.vue';
 import { Loader2 } from 'lucide-vue-next';
 
 const pacienteStore = usePacienteStore();
@@ -123,5 +124,8 @@ const materialesFaq = computed(() => {
       </template>
 
     </div>
+
+    <!-- Asistente Virtual Prequirúrgico Local (Ollama) -->
+    <ChatAssistant />
   </div>
 </template>
