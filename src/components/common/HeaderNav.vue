@@ -4,11 +4,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { usePacienteStore } from '../../stores/pacienteStore';
 import { MOCK_PACIENTE_A_ID, MOCK_PACIENTE_B_ID } from '../../lib/mockData';
+import { useVoiceCall } from '../../composables/useVoiceCall';
 import { Activity, User, HeartHandshake, Database, PhoneCall, X, ShieldAlert, Phone } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
 const pacienteStore = usePacienteStore();
+const voiceCall = useVoiceCall();
 const showHelpModal = ref(false);
 
 const isPacienteRoute = computed(() => route.path.startsWith('/paciente'));
@@ -53,17 +55,29 @@ function cambiarPaciente(id: string) {
         </div>
 
         <!-- Acciones del Paciente & Selector Discreto de Testing -->
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3">
           
+          <!-- Botón Iniciar Llamada con Asistente (100% Voz) -->
+          <button
+            type="button"
+            @click="voiceCall.openCall"
+            class="px-3 py-2 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm shadow-emerald-600/25 transition-all focus-ring cursor-pointer hover:scale-105 active:scale-95"
+            title="Iniciar llamada de voz directa con el Asistente Sofi (Manos libres)"
+          >
+            <PhoneCall class="w-4 h-4 animate-bounce" />
+            <span class="hidden sm:inline">Iniciar llamada con Asistente</span>
+            <span class="sm:hidden">Llamar Asistente</span>
+          </button>
+
           <!-- Botón de Ayuda & Contacto 24/7 -->
           <button
             type="button"
             @click="showHelpModal = true"
-            class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm shadow-teal-600/20 transition-all focus-ring cursor-pointer"
+            class="px-2.5 py-2 sm:px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all focus-ring cursor-pointer"
+            title="Directorio de líneas de atención"
           >
-            <PhoneCall class="w-4 h-4 animate-bounce" />
-            <span class="hidden sm:inline">Ayuda & Asistencia 24/7</span>
-            <span class="sm:hidden">Ayuda</span>
+            <Phone class="w-4 h-4 text-teal-700" />
+            <span class="hidden xl:inline">Directorio Ayuda</span>
           </button>
 
           <!-- Selector Discreto de Prueba (Testing de Casos) -->

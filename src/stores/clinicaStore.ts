@@ -217,7 +217,19 @@ export const useClinicaStore = defineStore('clinica', () => {
         recalcularTodosLosSemaforos();
       });
 
-      return unsubCheckins;
+      const unsubAlertas = mockRealtimeBus.subscribe('alertas', payload => {
+        const nueva = payload.new as Alerta;
+        // Si no existe ya, agregar al inicio de la lista reactiva de alertas
+        if (!alertas.value.some(a => a.id === nueva.id)) {
+          alertas.value.unshift(nueva);
+        }
+        recalcularTodosLosSemaforos();
+      });
+
+      return () => {
+        unsubCheckins();
+        unsubAlertas();
+      };
     }
   }
 

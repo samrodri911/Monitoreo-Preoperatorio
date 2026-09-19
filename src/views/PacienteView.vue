@@ -11,6 +11,7 @@ import DayOfSurgeryTimeline from '../components/paciente/DayOfSurgeryTimeline.vu
 import HospitalBagChecklist from '../components/paciente/HospitalBagChecklist.vue';
 import FaqAccordion from '../components/paciente/FaqAccordion.vue';
 import ChatAssistant from '../components/paciente/ChatAssistant.vue';
+import VoiceCallModal from '../components/paciente/VoiceCallModal.vue';
 import { Loader2 } from 'lucide-vue-next';
 
 const pacienteStore = usePacienteStore();
@@ -127,5 +128,8 @@ const materialesFaq = computed(() => {
 
     <!-- Asistente Virtual Prequirúrgico Local (Ollama) -->
     <ChatAssistant />
+
+    <!-- Modal de Llamada 100% de Voz (Cero Texto / RD4 Rescate Asistencial) -->
+    <VoiceCallModal />
   </div>
 </template>

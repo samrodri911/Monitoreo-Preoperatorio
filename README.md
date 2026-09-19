@@ -23,8 +23,15 @@
   - **Checklist Interactivo de la Maleta:** Lista interactiva para empacar con persistencia (`localStorage`) y advertencias de seguridad (NO joyas, NO esmaltes de uñas, NO lentes de contacto).
   - **Preguntas Frecuentes (FAQ):** Desplegable interactivo sobre dolor, síntomas de tos/resfriado, ingesta de medicamentos matutinos con agua y acompañante obligatorio.
 - **Dosificación Cronológica de Pautas:** Cronograma interactivo por etapas (-72h, -24h, -8h, -2h) con check-ins de confirmación inmediata.
-- **Línea de Ayuda & Asistencia 24/7:** Modal de contacto rápido con líneas directas de enfermería y coordinación quirúrgica.
-- **Placeholder para Agente IA de Voz / Pulsera Wearable:** Espacio reservado para la futura integración phygital.
+- **Modo Llamada con el Asistente 100% de Voz (Cero Texto / A2 & A3):**
+  - Llamada continua simulada: el paciente habla con naturalidad, el sistema transcribe en segundo plano, procesa el contexto clínico con IA y responde inmediatamente por voz.
+  - **Cero fatiga cognitiva:** Sin burbujas de chat, sin historial de texto, diseñado con orbe de respiración relajante y barras de audio reactivas para adultos mayores.
+  - Comandos de voz naturales: reconoce despedidas ("adiós", "hasta luego", "colgar") para cerrar la llamada cordialmente.
+- **Protocolo de Rescate y Contención de Ansiedad (RD4 & A4):**
+  - Botón de rescate *"Hablar con Enfermería (Humano)"* y detección de frases de angustia ("necesito una enfermera", "auxilio", "humano").
+  - Desvío inmediato a líneas directas de enfermería 24/7 (`+57 300 999 8877`).
+  - Emisión instantánea de **alerta prioritaria** reflejada en tiempo real en el Tablero Clínico (`/clinica`).
+- **Línea de Ayuda & Asistencia 24/7:** Enlace directo con enfermería y coordinación quirúrgica.
 
 ### 2. Tablero Clínico Semáforo en Tiempo Real (`/clinica`) — *Supervisión Quirúrgica*
 - **Lógica de Semáforo de Riesgo:**
@@ -153,13 +160,43 @@ Guarda el archivo y reinicia el servidor (`npm run dev`). La aplicación detecta
 
 ## 🧪 Guía de Prueba Rápida (Reactividad en Tiempo Real)
 
-Para comprobar la sincronización instantánea entre el paciente y el equipo médico:
-
+### Prueba 1: Semáforo y Check-ins en Tiempo Real
 1. Abre dos ventanas de navegador lado a lado:
    - **Ventana 1:** `http://localhost:5173/clinica` (Tablero Hospitalario).
-   - **Ventana 2:** `http://localhost:5173/paciente` (Selecciona a la paciente **Elena Restrepo**, quien se encuentra en 🔴 **Riesgo Crítico** por tener pendiente la pauta de ayuno).
+   - **Ventana 2:** `http://localhost:5173/paciente` (Selecciona a la paciente **Elena Restrepo**, en 🔴 **Riesgo Crítico**).
 2. En la ventana del paciente, ve a la pestaña **"Mi Preparación Activa"** y haz clic en **"Marcar como Cumplido"** en la pauta de *Ayuno Estricto de Sólidos*.
-3. **Observa la ventana de la clínica (`/clinica`):** El semáforo de Elena cambiará de forma totalmente automática de 🔴 **Rojo** a 🟢 **Verde (Preparado)** sin recargar la página.
+3. **Observa la clínica (`/clinica`):** El semáforo cambiará en vivo a 🟢 **Verde (Preparado)**.
+
+### Prueba 2: Modo Llamada de Voz y Rescate RD4
+1. En `/paciente`, haz clic en **"Iniciar llamada con Asistente"** (en el header o en la tarjeta de preparación).
+2. Concede permiso de micrófono: escucharás a Sofi saludarte por altavoz.
+3. Habla con naturalidad (ej. *"¿Puedo tomar un sorbo de agua?"* o *"Tengo mucho miedo de la anestesia"*): Sofi te responderá con voz empática y calmada.
+4. **Rescate Asistencial:** Haz clic en **"Hablar con Enfermería (Humano)"** o di *"Necesito una enfermera"*.
+   - Verás el desvío inmediato a líneas directas.
+   - En la ventana de `/clinica`, aparecerá instantáneamente una alerta amarilla de rescate en el feed en vivo.
+
+---
+
+## 🎙️ Microservicio de Voz Neuronal con Edge-TTS (Calidad Hiperrealista)
+
+El asistente virtual **Sofi** cuenta con soporte para voces neuronales de alta fidelidad acústica mediante `edge-tts` (utilizando la voz femenina colombiana `es-CO-SalomeNeural`).
+
+### 1. Iniciar el microservicio TTS (opcional pero recomendado)
+En una terminal secundaria:
+```bash
+# Opción A: Mediante script npm
+npm run tts
+
+# Opción B: Directamente con Python
+python backend/tts_service.py
+
+# Opción C (Windows):
+Doble clic en backend/start_tts.bat
+```
+
+El servicio arrancará en `http://localhost:8000`.
+
+> **Nota de Resiliencia:** Si el microservicio de Python no está encendido o se interrumpe, el sistema realiza **fallback automático transparente** a la síntesis vocal nativa del navegador (`window.speechSynthesis`) sin detener la conversación ni emitir errores al paciente.
 
 ---
 

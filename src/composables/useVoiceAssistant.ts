@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue';
+import { edgeTtsService } from '../services/edgeTtsService';
 
 // Tipado seguro para la Web Speech API nativa
 interface SpeechRecognitionErrorEvent extends Event {
@@ -31,7 +32,6 @@ export function useVoiceAssistant() {
 
   let recognitionInstance: any = null;
   let synth: SpeechSynthesis | null = null;
-  let preferredVoice: SpeechSynthesisVoice | null = null;
 
   /**
    * Limpia el texto en formato Markdown para que la síntesis
@@ -39,46 +39,27 @@ export function useVoiceAssistant() {
    */
   function cleanMarkdownForSpeech(text: string): string {
     return text
-      // Eliminar bloques de código
+      // Eliminar bloques de código markdown
       .replace(/```[\s\S]*?```/g, '')
-      // Eliminar código en línea
+      // Eliminar código inline
       .replace(/`([^`]+)`/g, '$1')
       // Eliminar negritas y cursivas
       .replace(/(\*\*|__)(.*?)\1/g, '$2')
       .replace(/(\*|_)(.*?)\1/g, '$2')
-      // Eliminar encabezados (# Titulo)
+      // Eliminar encabezados
       .replace(/^#{1,6}\s+/gm, '')
-      // Eliminar enlaces [texto](url) -> texto
+      // Reemplazar enlaces por solo el texto visible
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Eliminar viñetas y numeraciones al inicio de línea
+      // Eliminar viñetas y listas
       .replace(/^\s*[-*]\s+/gm, '')
       .replace(/^\s*\d+\.\s+/gm, '')
-      // Eliminar citas (>)
+      // Eliminar citas
       .replace(/^>\s?/gm, '')
-      // Reemplazar múltiples saltos de línea por pausas suaves
+      // Reemplazar saltos de línea por pausas suaves
       .replace(/\n+/g, '. ')
       // Reemplazar emojis o símbolos que perturben la dicción
       .replace(/[👋⚠️🚨💡🩺💙✨]/g, '')
       .trim();
-  }
-
-  /**
-   * Carga y selecciona la mejor voz en español disponible en el navegador
-   */
-  function loadVoices() {
-    if (!synth) return;
-    const voices = synth.getVoices();
-    if (!voices || voices.length === 0) return;
-
-    // Priorizar voces en español de Latinoamérica o España, preferiblemente naturales
-    const spanishVoices = voices.filter(v => v.lang.startsWith('es'));
-
-    preferredVoice =
-      spanishVoices.find(v => v.lang === 'es-CO') ||
-      spanishVoices.find(v => /colombia|latam|mexico|es-419/i.test(v.name)) ||
-      spanishVoices.find(v => /natural|neural|google|monica|paulina|sabina|salome/i.test(v.name)) ||
-      spanishVoices[0] ||
-      null;
   }
 
   // Inicialización de APIs al montar
@@ -102,13 +83,11 @@ export function useVoiceAssistant() {
         }
       }
 
-      // 2. Detección de TTS
-      if ('speechSynthesis' in window) {
+      // 2. Detección de TTS (Edge-TTS neuronal con fallback a síntesis nativa)
+      if (typeof window !== 'undefined') {
         speechSynthesisSupported.value = true;
-        synth = window.speechSynthesis;
-        loadVoices();
-        if (synth.onvoiceschanged !== undefined) {
-          synth.onvoiceschanged = loadVoices;
+        if ('speechSynthesis' in window) {
+          synth = window.speechSynthesis;
         }
       }
 
@@ -230,11 +209,9 @@ export function useVoiceAssistant() {
   }
 
   /**
-   * Sintetiza el texto de respuesta usando la voz suave del navegador (TTS)
+   * Sintetiza el texto de respuesta usando voz neuronal hiperrealista (Edge-TTS) con fallback nativo
    */
-  function speak(text: string, messageId?: string, onDone?: () => void) {
-    if (!speechSynthesisSupported.value || !synth) return;
-
+  async function speak(text: string, messageId?: string, onDone?: () => void) {
     // Si ya está reproduciendo el mismo mensaje, detenerlo (toggle)
     if (isSpeaking.value && messageId && speakingMessageId.value === messageId) {
       stopSpeaking();
@@ -246,46 +223,42 @@ export function useVoiceAssistant() {
     const cleanText = cleanMarkdownForSpeech(text);
     if (!cleanText) return;
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = preferredVoice?.lang || 'es-CO';
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-
-    // Tono cálido, ritmo calmado y pausado (ideal para pacientes prequirúrgicos)
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-
     speakingMessageId.value = messageId || null;
+    isSpeaking.value = true;
 
-    utterance.onstart = () => {
-      isSpeaking.value = true;
-    };
-
-    utterance.onend = () => {
-      isSpeaking.value = false;
-      speakingMessageId.value = null;
-      onDone?.();
-    };
-
-    utterance.onerror = (e) => {
-      // El error 'interrupted' o 'canceled' ocurre cuando el usuario para voluntariamente
-      if (e.error !== 'interrupted' && e.error !== 'canceled') {
-        console.warn('[useVoiceAssistant] Error TTS:', e);
+    await edgeTtsService.playNeuralVoice(
+      cleanText,
+      // onEnded
+      () => {
+        isSpeaking.value = false;
+        speakingMessageId.value = null;
+        onDone?.();
+      },
+      // onError
+      () => {
+        isSpeaking.value = false;
+        speakingMessageId.value = null;
+      },
+      // options
+      {
+        voice: 'es-CO-SalomeNeural',
+        rate: '+5%',
+        onStart: () => {
+          isSpeaking.value = true;
+        }
       }
-      isSpeaking.value = false;
-      speakingMessageId.value = null;
-    };
-
-    synth.speak(utterance);
+    );
   }
 
   /**
-   * Detiene cualquier locución activa
+   * Detiene cualquier locución activa (neuronal o nativa)
    */
   function stopSpeaking() {
+    edgeTtsService.stop();
     if (synth && (synth.speaking || isSpeaking.value)) {
-      synth.cancel();
+      try {
+        synth.cancel();
+      } catch {}
     }
     isSpeaking.value = false;
     speakingMessageId.value = null;
