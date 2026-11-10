@@ -184,14 +184,14 @@ El asistente virtual **Sofi** cuenta con soporte para voces neuronales de alta f
 ### 1. Iniciar el microservicio TTS (opcional pero recomendado)
 En una terminal secundaria:
 ```bash
-# Opción A: Mediante script npm
+# Opción A (Universal - Mac, Windows, Linux):
 npm run tts
 
-# Opción B: Directamente con Python
-python backend/tts_service.py
+# Opción B (macOS / Linux):
+./backend/start_tts.sh
 
 # Opción C (Windows):
-Doble clic en backend/start_tts.bat
+backend\start_tts.bat
 ```
 
 El servicio arrancará en `http://localhost:8000`.

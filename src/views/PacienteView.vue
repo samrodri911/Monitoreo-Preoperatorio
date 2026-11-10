@@ -5,8 +5,7 @@ import EducationalHero from '../components/paciente/EducationalHero.vue';
 import NavigationTabs from '../components/paciente/NavigationTabs.vue';
 import PautasTimeline from '../components/paciente/PautasTimeline.vue';
 import AgentMockCard from '../components/paciente/AgentMockCard.vue';
-import VideoPlayer from '../components/paciente/VideoPlayer.vue';
-import InfographicViewer from '../components/paciente/InfographicViewer.vue';
+import ConoceTuCirugia from '../components/paciente/ConoceTuCirugia.vue';
 import DayOfSurgeryTimeline from '../components/paciente/DayOfSurgeryTimeline.vue';
 import HospitalBagChecklist from '../components/paciente/HospitalBagChecklist.vue';
 import FaqAccordion from '../components/paciente/FaqAccordion.vue';
@@ -75,25 +74,11 @@ const materialesFaq = computed(() => {
         <!-- CONTENIDO PESTAÑA 1: CONOCE TU CIRUGÍA (CENTRO EDUCATIVO PREOPERATORIO RD1) -->
         <div v-show="activeTab === 'educacion'" class="space-y-8 animate-in fade-in duration-300">
           
-          <!-- Módulo Multimedia: Video e Infografía -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Reproductor de Video Explicativo -->
-            <VideoPlayer
-              v-if="videoRecurso"
-              :title="videoRecurso.titulo"
-              :description="videoRecurso.descripcion_corta"
-              :video-url="videoRecurso.url_recurso"
-            />
-
-            <!-- Visor de Infografía Anatómica de Mínima Invasión -->
-            <InfographicViewer
-              v-if="infografiaRecurso"
-              :title="infografiaRecurso.titulo"
-              :description="infografiaRecurso.descripcion_corta"
-              :image-url="infografiaRecurso.url_recurso"
-              :markdown-content="infografiaRecurso.contenido_markdown"
-            />
-          </div>
+          <!-- Módulo Multimedia: Video e Infografía Adaptado al Procedimiento -->
+          <ConoceTuCirugia
+            :video-recurso="videoRecurso"
+            :infografia-recurso="infografiaRecurso"
+          />
 
           <!-- Guía Paso a Paso: "El Recorrido de tu Cirugía" -->
           <DayOfSurgeryTimeline

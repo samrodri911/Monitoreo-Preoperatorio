@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#042f2e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#14b8a6" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bgGrad)" />
+  <circle cx="640" cy="360" r="300" fill="url(#glow)" />
+
+  <!-- Grid decorativa sutil -->
+  <g stroke="#ffffff" stroke-opacity="0.05" stroke-width="1">
+    <line x1="0" y1="180" x2="1280" y2="180" />
+    <line x1="0" y1="360" x2="1280" y2="360" />
+    <line x1="0" y1="540" x2="1280" y2="540" />
+    <line x1="320" y1="0" x2="320" y2="720" />
+    <line x1="640" y1="0" x2="640" y2="720" />
+    <line x1="960" y1="0" x2="960" y2="720" />
+  </g>
+
+  <!-- Botón Play Central -->
+  <g transform="translate(640, 320)">
+    <circle r="52" fill="#0d9488" fill-opacity="0.9" stroke="#5eead4" stroke-width="3" />
+    <polygon points="-12,-20 -12,20 22,0" fill="#ffffff" />
+  </g>
+
+  <!-- Título y Subtítulo -->
+  <text x="640" y="440" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">
+    Apendicectomía Laparoscópica
+  </text>
+  <text x="640" y="480" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="400" fill="#99f6e4" text-anchor="middle">
+    Cápsula Audiovisual Preoperatoria • Mínima Invasión
+  </text>
+  <text x="640" y="520" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="500" fill="#94a3b8" text-anchor="middle">
+    Haz clic en Reproducir para iniciar
+  </text>
+</svg>

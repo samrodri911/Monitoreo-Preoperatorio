@@ -19,9 +19,11 @@ export interface Cirugia {
   paciente_id: string;
   tipo_cirugia: string;
   nombre_sencillo?: string | null;
+  especialidad?: string | null;
   duracion_estimada?: string | null;
   tipo_anestesia?: string | null;
   sensacion_anestesia?: string | null;
+  tiempo_recuperacion?: string | null;
   tiempo_recuperacion_sala?: string | null;
   dias_incapacidad_estimados?: string | null;
   fecha_programada: string;

@@ -1,0 +1,20 @@
+========================================================================
+CARPETA PARA VIDEOS LOCALES - ECOSISTEMA PREOPERATORIO
+========================================================================
+
+Guarda tu archivo de video directamente en esta carpeta:
+/public/videos/
+
+Nombre de archivo recomendado:
+apendicectomia-laparoscopica.mp4
+
+(También se acepta alternativamente: cirugia-apendice.mp4)
+
+Formatos soportados:
+- MP4 (Códec de video H.264 + Códec de audio AAC)
+- WebM (Códec VP9 u Opus)
+
+El reproductor nativo HTML5 en el Portal del Paciente detectará y 
+reproducirá automáticamente el archivo desde esta ruta pública:
+/videos/apendicectomia-laparoscopica.mp4
+========================================================================

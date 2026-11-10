@@ -23,14 +23,21 @@ app = FastAPI(
 # Configuración de CORS permisivo para Vite y consumo local
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "*"
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 VOZ_DEFAULT = "es-CO-SalomeNeural"
-RATE_DEFAULT = "+5%" # Ritmo ágil y natural para mayor fluidez conversacional
+RATE_DEFAULT = "+18%" # Ritmo ágil y natural para mayor fluidez conversacional
 
 class TTSRequest(BaseModel):
     text: str

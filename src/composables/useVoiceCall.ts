@@ -362,7 +362,7 @@ function speak(text: string, onDone?: () => void) {
     // options
     {
       voice: 'es-CO-SalomeNeural',
-      rate: '+5%',
+      rate: '+18%',
       onStart: () => {
         // Si el usuario colgó mientras cargaba el audio, parar inmediatamente
         if (!isCallActive.value || callStatus.value === 'idle' || callStatus.value === 'ending') {
@@ -440,11 +440,10 @@ async function procesarTurnoDelPaciente(userSpeech: string) {
   const voicePrompt = `ESTÁS EN UNA LLAMADA TELEFÓNICA 100% DE VOZ con el paciente ${nombre} (cirugía: ${cirugiaNombre}).
 Habla en primera persona directamente como Sofi:
 - PROHIBIDO INCLUIR etiquetas, acotaciones teatrales o prefijos como "(Altavoz)", "(Voz)", "(Sofi):", "[Altavoz]" o similares. Comienza a hablarle al paciente directamente desde la primera palabra.
-- REGLA DE MÁXIMA BREVEDAD: Responde con MÁXIMO 2 o 3 frases cortas (menos de 60-70 palabras en total).
-- IR DIRECTO AL PUNTO: Contesta en la PRIMERA FRASE exactamente lo que el paciente preguntó. Si pregunta qué evitar, menciona únicamente las restricciones activas en este momento, sin repasar el historial.
-- LENGUAJE COTIDIANO Y CERCANO: Prohibido decir "entendido tu curiosidad", "asegurar una recuperación óptima", "no hay necesidad de preocuparse" o fórmulas cliché. Usa validaciones naturales como "Es totalmente normal tener esa duda" o "Vas por muy buen camino".
-- FOCO EN SENSACIONES Y CONFORT: Nada de descripciones anatómicas crudas del cuerpo interno. Enfócate en el confort (estarás dormido sin dolor, incisiones milimétricas, monitoreo constante).
-- CERO FORMATO O EMOJIS: Habla en prosa continua, sin viñetas, asteriscos, negritas ni emojis.
+- ADAPTACIÓN POR INTENCIÓN:
+  * Si es una consulta cerrada/operativa (permisos, ayuno, horarios, medicamentos, celular): Responde en Modo A (1 a 2 oraciones cortas, directo al grano, máx 30 a 45 palabras).
+  * Si es una consulta abierta, emocional o educativa (miedo, anestesia, procedimiento, dudas amplias): Responde en Modo B (extensión moderada y cálida de 70 a 100 palabras con validación empática, explicación tranquilizadora y cierre de apoyo).
+- CERO FORMATO O EMOJIS: Habla en prosa continua, sin viñetas, asteriscos, negritas ni emojis apto para ser pronunciado por voz.
 
 Paciente: "${speech}"`;
 
@@ -624,12 +623,11 @@ function startCall() {
   }, 1000);
 
   const pacienteStore = usePacienteStore();
-  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Paciente';
-  const cirugiaNombre = pacienteStore.cirugia?.nombre_sencillo || pacienteStore.cirugia?.tipo_cirugia || 'tu procedimiento quirúrgico';
+  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Carlos';
 
-  const saludoInicial = `¡Hola ${nombre}! Soy Sofi, tu acompañante clínica preoperatoria. Estamos en una llamada directa de voz. Cuéntame con calma, ¿cómo te sientes hoy o qué duda tienes sobre tu ${cirugiaNombre}? Te escucho.`;
+  const saludoInicial = `Hola ${nombre}, ¿qué duda tienes sobre tu cirugía?`;
 
-  // Síntesis del saludo inicial con voz femenina; al terminar, activa el micrófono automáticamente
+  // Síntesis del saludo inicial ultracorto; al terminar, activa el micrófono inmediatamente
   speak(saludoInicial, () => {
     if (isCallActive.value && callStatus.value !== 'transferred' && callStatus.value !== 'ending') {
       startListening();

@@ -77,7 +77,7 @@ function navegarAPaciente(pacienteId: string) {
             </div>
 
             <h3 class="text-xl font-bold text-slate-900">Carlos Alberto Mendoza</h3>
-            <p class="text-xs text-slate-500">Colecistectomía Laparoscópica</p>
+            <p class="text-xs text-slate-500">Apendicectomía Laparoscópica</p>
 
             <p class="text-sm text-slate-600 leading-relaxed">
               Paciente con pautas al día. Ideal para explorar el <strong>Centro Educativo (RD1)</strong>: video explicativo, infografía anatómica y checklist de maleta.

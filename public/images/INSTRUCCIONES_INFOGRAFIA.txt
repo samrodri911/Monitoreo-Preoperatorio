@@ -1,0 +1,18 @@
+========================================================================
+CARPETA PARA INFOGRAFÍAS Y RECURSOS GRÁFICOS - ECOSISTEMA PREOPERATORIO
+========================================================================
+
+Guarda tu archivo de infografía médica ilustrada directamente aquí:
+/public/images/
+
+Nombre de archivo exacto recomendado:
+infografia-apendice.png
+
+(También se detectan automáticamente formatos alternativos:
+infografia-apendice.jpg, infografia-apendice.jpeg, infografia-apendice.webp)
+
+Ruta pública resuelta por Vite (en dev y producción):
+/images/infografia-apendice.png
+
+Resolución recomendada: 1280x720 o superior (proporción 16:9 o 4:3).
+========================================================================

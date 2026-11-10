@@ -10,12 +10,13 @@ interface BagItem {
 }
 
 const items = ref<BagItem[]>([
-  { id: 'doc-1', category: 'documento', label: 'Documento de identidad original (Cédula de ciudadanía o extranjería)', checked: true },
-  { id: 'doc-2', category: 'documento', label: 'Orden médica quirúrgica y autorización firmada de tu EPS o aseguradora', checked: true },
+  { id: 'doc-1', category: 'documento', label: 'Documento de identidad original (Cédula de ciudadanía, extranjería o pasaporte)', checked: true },
+  { id: 'doc-2', category: 'documento', label: 'Orden médica quirúrgica y autorización de tu EPS o aseguradora', checked: true },
   { id: 'doc-3', category: 'documento', label: 'Resultados físicos impresos de tus exámenes prequirúrgicos (sangre y electrocardiograma)', checked: false },
-  { id: 'ropa-1', category: 'ropa', label: 'Ropa muy holgada y fácil de vestir (preferiblemente camisa o vestido con botones al frente)', checked: true },
+  { id: 'ropa-1', category: 'ropa', label: 'Ropa muy holgada y cómoda (preferiblemente pantalones o vestidos con elástico suave que no presionen el abdomen bajo)', checked: true },
   { id: 'ropa-2', category: 'ropa', label: 'Calzado plano, cerrado y con suela de goma antideslizante', checked: false },
   { id: 'ropa-3', category: 'ropa', label: 'Muda de ropa interior cómoda y holgada de algodón', checked: false },
+  { id: 'util-1', category: 'ropa', label: 'Cargador de teléfono móvil con cable largo para tu estancia de observación', checked: false },
   { id: 'aseo-1', category: 'aseo', label: 'Artículos de aseo personal permitidos (cepillo de dientes, crema dental y toalla pequeña)', checked: false },
 ]);
 
@@ -121,13 +122,13 @@ const progressPercent = computed(() => Math.round((checkedItems.value / totalIte
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm text-amber-900 leading-relaxed pt-1">
         <div class="p-3 rounded-xl bg-white/70 border border-amber-200/60">
-          <strong>❌ Sin joyas ni cadenas:</strong> Anillos, aretes o piercing deben quedar en casa por seguridad del electrocauterio quirúrgico.
+          <strong>❌ Sin joyas ni piercings:</strong> Anillos, aretes, cadenas o piercings deben quedar en casa por riesgo de quemadura por electrobisturí.
         </div>
         <div class="p-3 rounded-xl bg-white/70 border border-amber-200/60">
-          <strong>❌ Sin esmalte en uñas:</strong> Las uñas de manos y pies deben estar limpias para que el oxímetro lea tu pulso correctamente.
+          <strong>❌ Sin esmalte en uñas:</strong> Las uñas de manos y pies deben estar limpias para que el oxímetro lea tu pulso y oxígeno.
         </div>
         <div class="p-3 rounded-xl bg-white/70 border border-amber-200/60">
-          <strong>❌ Sin lentes de contacto:</strong> Ingresa únicamente con tus gafas de marco convencionales.
+          <strong>❌ Sin lentes ni prótesis:</strong> Retirar prótesis dentales removibles antes de quirófano; usar gafas de marco en vez de lentes de contacto.
         </div>
         <div class="p-3 rounded-xl bg-white/70 border border-amber-200/60">
           <strong>❌ Sin valores ni efectivo:</strong> No traigas grandes sumas de dinero ni objetos electrónicos de alto valor.

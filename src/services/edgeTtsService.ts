@@ -118,7 +118,7 @@ class EdgeTtsService {
         body: JSON.stringify({
           text: clean,
           voice: options?.voice || 'es-CO-SalomeNeural',
-          rate: options?.rate || '+5%',
+          rate: options?.rate || '+18%',
         }),
         signal: this.abortController.signal,
       });
@@ -185,7 +185,7 @@ class EdgeTtsService {
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
+      utterance.rate = 1.15;
       utterance.pitch = 1.05;
       utterance.lang = 'es-CO';
 

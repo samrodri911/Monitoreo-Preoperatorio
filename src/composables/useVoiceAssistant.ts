@@ -242,7 +242,7 @@ export function useVoiceAssistant() {
       // options
       {
         voice: 'es-CO-SalomeNeural',
-        rate: '+5%',
+        rate: '+18%',
         onStart: () => {
           isSpeaking.value = true;
         }

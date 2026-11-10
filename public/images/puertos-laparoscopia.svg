@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+    <linearGradient id="organGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ccfbf1" />
+      <stop offset="100%" stop-color="#99f6e4" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.1" />
+    </filter>
+  </defs>
+
+  <!-- Fondo de la tarjeta -->
+  <rect width="800" height="600" fill="#f1f5f9" rx="16" />
+
+  <!-- Silueta Abdominal Estilizada -->
+  <g transform="translate(150, 40)" filter="url(#shadow)">
+    <!-- Contorno torso -->
+    <path d="M 50,40 C 90,30 410,30 450,40 C 470,120 490,260 480,380 C 475,440 430,490 380,510 C 310,525 190,525 120,510 C 70,490 25,440 20,380 C 10,260 30,120 50,40 Z" 
+          fill="url(#bodyGrad)" stroke="#cbd5e1" stroke-width="2" />
+
+    <!-- Líneas anatómicas de referencia (Línea media alba y arcos costales) -->
+    <path d="M 250,60 L 250,490" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.5" />
+    <path d="M 120,120 Q 250,170 380,120" stroke="#cbd5e1" stroke-width="2" fill="none" />
+    <path d="M 140,460 Q 250,500 360,460" stroke="#cbd5e1" stroke-width="2" fill="none" />
+
+    <!-- Zona anatómica del Ciego y Apéndice (Fosa Ilíaca Derecha del paciente = izquierda del observador) -->
+    <g transform="translate(120, 320)">
+      <!-- Ciego / Intestino grueso estilizado -->
+      <path d="M 10,0 C 40,-10 60,30 50,80 C 40,110 0,110 -10,70 Z" fill="url(#organGrad)" stroke="#0d9488" stroke-width="2" />
+      <!-- Apéndice cecal -->
+      <path d="M 5,90 C -5,120 -25,115 -30,140 C -33,155 -25,160 -15,155 C -5,150 15,120 18,95" fill="#f43f5e" fill-opacity="0.8" stroke="#be123c" stroke-width="2" />
+      <text x="-40" y="175" font-family="system-ui, sans-serif" font-size="12" font-weight="700" fill="#be123c">Apéndice Inflamado</text>
+    </g>
+
+    <!-- 1. PUERTO UMBILICAL (10 mm) - Cámara HD -->
+    <g transform="translate(250, 270)">
+      <circle r="14" fill="#0d9488" fill-opacity="0.2" stroke="#0d9488" stroke-width="2" />
+      <circle r="6" fill="#0d9488" />
+      <line x1="0" y1="0" x2="160" y2="-60" stroke="#0d9488" stroke-width="2" />
+      <circle cx="160" cy="-60" r="4" fill="#0d9488" />
+      <rect x="170" y="-85" width="220" height="48" rx="8" fill="#ffffff" stroke="#0d9488" stroke-width="1.5" filter="url(#shadow)" />
+      <text x="180" y="-68" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">1. Puerto Umbilical (10 mm)</text>
+      <text x="180" y="-50" font-family="system-ui, sans-serif" font-size="11" fill="#475569">Microcámara HD (en el ombligo)</text>
+    </g>
+
+    <!-- 2. PUERTO SUPRAPÚBICO (5 mm) - Instrumental de trabajo -->
+    <g transform="translate(250, 440)">
+      <circle r="12" fill="#2563eb" fill-opacity="0.2" stroke="#2563eb" stroke-width="2" />
+      <circle r="5" fill="#2563eb" />
+      <line x1="0" y1="0" x2="160" y2="30" stroke="#2563eb" stroke-width="2" />
+      <circle cx="160" cy="30" r="4" fill="#2563eb" />
+      <rect x="170" y="10" width="220" height="48" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" filter="url(#shadow)" />
+      <text x="180" y="28" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">2. Puerto Suprapúbico (5 mm)</text>
+      <text x="180" y="46" font-family="system-ui, sans-serif" font-size="11" fill="#475569">Instrumental fino (bajo ropa interior)</text>
+    </g>
+
+    <!-- 3. PUERTO FOSA ILÍACA IZQUIERDA (5 mm) - Pinza de tracción -->
+    <g transform="translate(370, 360)">
+      <circle r="12" fill="#7c3aed" fill-opacity="0.2" stroke="#7c3aed" stroke-width="2" />
+      <circle r="5" fill="#7c3aed" />
+      <line x1="0" y1="0" x2="60" y2="40" stroke="#7c3aed" stroke-width="2" />
+      <circle cx="60" cy="40" r="4" fill="#7c3aed" />
+      <rect x="70" y="20" width="220" height="48" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="1.5" filter="url(#shadow)" />
+      <text x="80" y="38" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#0f172a">3. Fosa Ilíaca Izquierda (5 mm)</text>
+      <text x="80" y="56" font-family="system-ui, sans-serif" font-size="11" fill="#475569">Pinza de retracción suave</text>
+    </g>
+  </g>
+
+  <!-- Título Superior -->
+  <text x="40" y="45" font-family="system-ui, sans-serif" font-size="18" font-weight="800" fill="#0f172a">Mapa Anatómico: Los 3 Puertos Quirúrgicos</text>
+  <text x="40" y="68" font-family="system-ui, sans-serif" font-size="13" fill="#64748b">Técnica laparoscópica de mínima invasión sin corte de masa muscular</text>
+</svg>
