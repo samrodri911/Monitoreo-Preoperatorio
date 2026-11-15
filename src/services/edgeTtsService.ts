@@ -21,6 +21,8 @@ class EdgeTtsService {
   private currentBlobUrl: string | null = null;
   private abortController: AbortController | null = null;
   private isNeuralAvailable: boolean | null = null;
+  private nativeUtterance: SpeechSynthesisUtterance | null = null;
+  private isManuallyStopped = false;
 
   constructor() {
     this.apiUrl = import.meta.env.VITE_TTS_API_URL || 'http://localhost:8000/api/tts';
@@ -58,6 +60,8 @@ class EdgeTtsService {
    * Limpia y detiene cualquier reproducción de audio en curso (Edge-TTS o síntesis nativa)
    */
   stop(): void {
+    this.isManuallyStopped = true;
+
     // 1. Abortar petición de red pendiente
     if (this.abortController) {
       this.abortController.abort();
@@ -82,6 +86,12 @@ class EdgeTtsService {
     }
 
     // 4. Detener síntesis nativa del navegador por seguridad
+    if (this.nativeUtterance) {
+      this.nativeUtterance.onstart = null;
+      this.nativeUtterance.onend = null;
+      this.nativeUtterance.onerror = null;
+      this.nativeUtterance = null;
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
@@ -91,7 +101,7 @@ class EdgeTtsService {
 
   /**
    * Reproduce el texto usando la voz neuronal hiperrealista de Edge-TTS
-   * Si el backend no está disponible, conmuta transparentemente a síntesis nativa.
+   * Si el backend no está disponible o demora más de 2 segundos, conmuta transparentemente a síntesis nativa.
    */
   async playNeuralVoice(
     text: string,
@@ -100,6 +110,7 @@ class EdgeTtsService {
     options?: NeuralTtsOptions
   ): Promise<HTMLAudioElement | null> {
     this.stop();
+    this.isManuallyStopped = false;
 
     const clean = text.trim();
     if (!clean) {
@@ -107,8 +118,19 @@ class EdgeTtsService {
       return null;
     }
 
+    let fetchTimeoutId: any = null;
+
     try {
       this.abortController = new AbortController();
+
+      // Timeout estricto de 2.2 segundos para el microservicio:
+      // Si el servicio no responde rápido, conmutar inmediatamente a voz nativa sin trabar la llamada
+      fetchTimeoutId = setTimeout(() => {
+        if (!this.isManuallyStopped && this.abortController) {
+          console.warn('[EdgeTtsService] Timeout de microservicio (2.2s). Conmutando de inmediato a síntesis nativa.');
+          this.abortController.abort('tts_timeout');
+        }
+      }, 2200);
 
       const response = await fetch(this.apiUrl, {
         method: 'POST',
@@ -123,11 +145,17 @@ class EdgeTtsService {
         signal: this.abortController.signal,
       });
 
+      if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Error al sintetizar voz en microservicio.`);
       }
 
       const blob = await response.blob();
+      if (this.isManuallyStopped) {
+        return null;
+      }
+
       this.currentBlobUrl = URL.createObjectURL(blob);
       const audio = new Audio(this.currentBlobUrl);
       this.currentAudio = audio;
@@ -154,12 +182,14 @@ class EdgeTtsService {
       this.isNeuralAvailable = true;
       return audio;
     } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        // Reproducción cancelada intencionalmente (ej. usuario colgó o interrumpió)
+      if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
+
+      if (this.isManuallyStopped) {
+        // Reproducción cancelada intencionalmente por el usuario (colgó o silenció)
         return null;
       }
 
-      console.warn('[EdgeTtsService] Microservicio no disponible o error de red. Conmutando a voz nativa:', err?.message || err);
+      console.warn('[EdgeTtsService] Microservicio no disponible, timeout o error. Conmutando de inmediato a voz nativa:', err?.message || err);
       this.isNeuralAvailable = false;
       this.fallbackNativeSpeech(clean, onEnded, onError, options?.onStart);
       return null;
@@ -183,8 +213,12 @@ class EdgeTtsService {
 
     try {
       window.speechSynthesis.cancel();
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
 
       const utterance = new SpeechSynthesisUtterance(text);
+      this.nativeUtterance = utterance;
       utterance.rate = 1.15;
       utterance.pitch = 1.05;
       utterance.lang = 'es-CO';
@@ -200,12 +234,23 @@ class EdgeTtsService {
         utterance.lang = femaleVoice.lang;
       }
 
+      let endedCalled = false;
+      let watchdogTimer: any = null;
+
+      const safeEnd = () => {
+        if (endedCalled) return;
+        endedCalled = true;
+        if (watchdogTimer) clearTimeout(watchdogTimer);
+        this.nativeUtterance = null;
+        onEnded?.();
+      };
+
       utterance.onstart = () => {
         onStart?.();
       };
 
       utterance.onend = () => {
-        onEnded?.();
+        safeEnd();
       };
 
       utterance.onerror = (e) => {
@@ -213,11 +258,26 @@ class EdgeTtsService {
           console.warn('[EdgeTtsService-Fallback] Error nativo:', e);
           onError?.(e);
         }
-        onEnded?.();
+        safeEnd();
       };
+
+      // Watchdog de seguridad: estimar tiempo de lectura y no quedar bloqueado si onend falla
+      const expectedDurationMs = Math.max(3500, (text.length / 9) * 1000 + 2000);
+      watchdogTimer = setTimeout(() => {
+        console.log('[EdgeTtsService-Fallback] Watchdog de voz nativa ejecutado tras timeout');
+        safeEnd();
+      }, expectedDurationMs);
+
+      // Disparar onStart tras 50ms para desbloquear estado UI de inmediato
+      setTimeout(() => {
+        if (this.nativeUtterance && !endedCalled) {
+          onStart?.();
+        }
+      }, 50);
 
       window.speechSynthesis.speak(utterance);
     } catch (e) {
+      this.nativeUtterance = null;
       console.warn('[EdgeTtsService] Error en fallback nativo:', e);
       onError?.(e);
       onEnded?.();

@@ -1,16 +1,35 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useClinicaStore } from '../stores/clinicaStore';
 import { usePacienteStore } from '../stores/pacienteStore';
+import { useChatStore } from '../stores/chat';
 import PatientRiskCard from '../components/clinica/PatientRiskCard.vue';
 import LiveAlertFeed from '../components/clinica/LiveAlertFeed.vue';
-import { ShieldCheck, AlertTriangle, AlertOctagon, Users, RefreshCw, Radio } from 'lucide-vue-next';
+import NuevaCirugiaForm from '../components/clinica/NuevaCirugiaForm.vue';
+import CatalogoCirugiasModal from '../components/clinica/CatalogoCirugiasModal.vue';
+import { ShieldCheck, AlertTriangle, AlertOctagon, Users, RefreshCw, Radio, UserPlus, BookOpen } from 'lucide-vue-next';
 
 const router = useRouter();
 const clinicaStore = useClinicaStore();
 const pacienteStore = usePacienteStore();
+const chatStore = useChatStore();
 let unsubRealtime: (() => void) | null = null;
+
+const showNuevaCirugiaModal = ref(false);
+const showCatalogoModal = ref(false);
+const preselectedCatalogoId = ref<string | null>(null);
+
+function abrirCatalogoDesdeFormulario() {
+  showNuevaCirugiaModal.value = false;
+  showCatalogoModal.value = true;
+}
+
+function usarCirugiaParaNuevoPaciente(catalogoId: string) {
+  preselectedCatalogoId.value = catalogoId;
+  showCatalogoModal.value = false;
+  showNuevaCirugiaModal.value = true;
+}
 
 onMounted(async () => {
   await clinicaStore.cargarTablero();
@@ -21,8 +40,10 @@ onUnmounted(() => {
   if (unsubRealtime) unsubRealtime();
 });
 
-function verPaciente(pacienteId: string) {
-  pacienteStore.cargarDatosPaciente(pacienteId);
+async function verPaciente(pacienteId: string) {
+  showNuevaCirugiaModal.value = false;
+  chatStore.clearChat();
+  await pacienteStore.cargarDatosPaciente(pacienteId);
   router.push('/paciente');
 }
 </script>
@@ -46,15 +67,51 @@ function verPaciente(pacienteId: string) {
           </p>
         </div>
 
-        <button
-          type="button"
-          @click="clinicaStore.cargarTablero"
-          class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors focus-ring cursor-pointer self-start md:self-auto"
-        >
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': clinicaStore.isLoading }" />
-          <span>Actualizar Datos</span>
-        </button>
+        <div class="flex flex-wrap items-center gap-3 self-start md:self-auto">
+          <button
+            type="button"
+            @click="clinicaStore.cargarTablero"
+            class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors focus-ring cursor-pointer"
+          >
+            <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': clinicaStore.isLoading }" />
+            <span>Actualizar</span>
+          </button>
+
+          <button
+            type="button"
+            @click="showCatalogoModal = true"
+            class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all focus-ring cursor-pointer"
+          >
+            <BookOpen class="w-4 h-4 text-teal-400" />
+            <span>Catálogo de Cirugías ({{ clinicaStore.catalogoCirugias.length }})</span>
+          </button>
+
+          <button
+            type="button"
+            @click="showNuevaCirugiaModal = true"
+            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/20 transition-all focus-ring cursor-pointer"
+          >
+            <UserPlus class="w-4 h-4" />
+            <span>Registrar Paciente y Cirugía</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Modal Gestor del Catálogo General de Cirugías (Protocolos Base Reutilizables) -->
+      <CatalogoCirugiasModal
+        :open="showCatalogoModal"
+        @close="showCatalogoModal = false"
+        @select-for-new-patient="usarCirugiaParaNuevoPaciente($event)"
+      />
+
+      <!-- Modal para Crear / Parametrizar Paciente (Usando Cirugía Base + Personalización) -->
+      <NuevaCirugiaForm
+        :open="showNuevaCirugiaModal"
+        :preselected-catalogo-id="preselectedCatalogoId"
+        @close="showNuevaCirugiaModal = false"
+        @open-catalogo="abrirCatalogoDesdeFormulario"
+        @open-patient-preview="verPaciente($event)"
+      />
 
       <!-- Tarjetas de Métricas Ejecutivas -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">

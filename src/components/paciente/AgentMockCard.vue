@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { Bot, Mic, Sparkles, MessageSquare, PhoneCall } from 'lucide-vue-next';
+import { Bot, Mic, Sparkles, MessageSquare, PhoneCall, Watch } from 'lucide-vue-next';
 import { useChatStore } from '../../stores/chat';
 import { useVoiceCall } from '../../composables/useVoiceCall';
+
+const emit = defineEmits<{
+  (e: 'open-wristband'): void;
+}>();
 
 const chatStore = useChatStore();
 const voiceCall = useVoiceCall();
@@ -68,6 +72,16 @@ function openChat() {
         >
           <PhoneCall class="w-4 h-4 animate-bounce" />
           <span>Iniciar llamada con Asistente</span>
+        </button>
+
+        <button
+          type="button"
+          @click="emit('open-wristband')"
+          class="px-3.5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-teal-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors focus-ring cursor-pointer"
+          title="Abrir Simulador de Pulsera Inteligente sin pantalla"
+        >
+          <Watch class="w-4 h-4 text-teal-400" />
+          <span>Pulsera Phygital</span>
         </button>
 
         <button

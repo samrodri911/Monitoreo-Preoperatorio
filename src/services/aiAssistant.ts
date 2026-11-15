@@ -1,4 +1,5 @@
 import type { Paciente, Cirugia, PautaConCheckin, MaterialEducativo } from '../types/database.types';
+import { findCatalogoCirugia } from '../lib/mockData';
 
 export interface ChatMessage {
   id?: string;
@@ -143,30 +144,60 @@ export class AiAssistantService {
       : 'No hay pautas registradas en el sistema.';
 
     const primerNombre = paciente?.nombre_completo?.split(' ')[0] || 'Estimado(a)';
-    const isCadera = cirugia?.tipo_cirugia?.toLowerCase().includes('cadera') || 
-                     cirugia?.tipo_cirugia?.toLowerCase().includes('artroplastia');
+    const baseCatalogo = findCatalogoCirugia(cirugia?.catalogo_cirugia_id || cirugia?.tipo_cirugia);
+    const isCadera =
+      cirugia?.tipo_cirugia?.toLowerCase().includes('cadera') ||
+      cirugia?.tipo_cirugia?.toLowerCase().includes('artroplastia');
 
-    const explicacionCirugia = isCadera
-      ? `Explica el proceso en lenguaje cotidiano, destacando que el equipo médico estará a su lado monitoreando cada segundo, que estará bajo anestesia regional controlada con sedación suave sin sentir dolor en las piernas, y que se sustituye la superficie articular desgastada por la artrosis por una prótesis biocompatible (copa acetabular, esfera pulida y vástago de titanio) que elimina el roce óseo doloroso y permite caminar con andador desde las primeras 24 horas.`
-      : `Explica el proceso en lenguaje cotidiano, destacando que el equipo médico estará a su lado monitoreando cada segundo, que estará bajo anestesia sin sentir dolor, y que se extrae el apéndice inflamado mediante 3 incisiones milimétricas (una en el ombligo y dos en el bajo abdomen) con microcámara para una recuperación rápida con mínimo dolor muscular.`;
+    const explicacionCirugia =
+      baseCatalogo?.explicacion_sofi ||
+      (isCadera
+        ? `Explica el proceso en lenguaje cotidiano, destacando que el equipo médico estará a su lado monitoreando cada segundo, que estará bajo anestesia regional controlada con sedación suave sin sentir dolor en las piernas, y que se sustituye la superficie articular desgastada por la artrosis por una prótesis biocompatible (copa acetabular, esfera pulida y vástago de titanio) que elimina el roce óseo doloroso y permite caminar con andador desde las primeras 24 horas.`
+        : `Explica el proceso en lenguaje cotidiano, destacando que el equipo médico estará a su lado monitoreando cada segundo, que estará bajo anestesia sin sentir dolor, y que se extrae el apéndice inflamado mediante 3 incisiones milimétricas (una en el ombligo y dos en el bajo abdomen) con microcámara para una recuperación rápida con mínimo dolor muscular.`);
 
-    const directricesEspecificas = isCadera
-      ? `- CUIDADOS ARTICULARES Y PREVENCIÓN DE LUXACIÓN (ARTROPLASTIA DE CADERA):
+    const directricesEspecificas =
+      baseCatalogo?.cuidados_especificos_sofi
+        ? `- PROTOCOLO DE CUIDADOS Y SIGNOS DE ALARMA DE LA CIRUGÍA (${cirugia?.tipo_cirugia}):
+  ${baseCatalogo.cuidados_especificos_sofi}`
+        : isCadera
+        ? `- CUIDADOS ARTICULARES Y PREVENCIÓN DE LUXACIÓN (ARTROPLASTIA DE CADERA):
   * Movilización precoz: Estimula la deambulación asistida con andador o bastón desde las primeras 24 horas para activar la circulación y evitar rigidez.
   * Prevención estricta de luxación: Prohibido cruzar las piernas en tijera al sentarse o acostarse; evitar flexiones de cadera superiores a 90 grados durante las primeras semanas; promover el uso de asiento elevado en el inodoro y calzador de mango largo.
   * Signos de alarma específicos: Si manifiesta dolor punzante en la pantorrilla con hinchazón (sospecha de trombosis venosa), o dolor súbito intolerable con acortamiento o rotación anormal de la pierna operada (sospecha de luxación), indícale acudir de urgencias inmediatamente.`
-      : `- ALERTA CRÍTICA DE APENDICITIS (FIEBRE O DOLOR EN FOSA ILÍACA DERECHA): Si el paciente menciona fiebre superior a 38.5°C o dolor abdominal punzante insoportable en el lado inferior derecho previo al ingreso, ordénale de inmediato acudir a Urgencias para descartar perforación del apéndice o peritonitis.`;
+        : `- ALERTA CRÍTICA DE APENDICITIS (FIEBRE O DOLOR EN FOSA ILÍACA DERECHA): Si el paciente menciona fiebre superior a 38.5°C o dolor abdominal punzante insoportable en el lado inferior derecho previo al ingreso, ordénale de inmediato acudir a Urgencias para descartar perforación del apéndice o peritonitis.`;
+
+    const comorbilidadesStr =
+      paciente?.comorbilidades && paciente.comorbilidades.length > 0
+        ? paciente.comorbilidades.join(', ')
+        : 'Ninguna reportada';
+
+    const notasClinicasDoctor = cirugia?.notas_medicas?.trim()
+      ? `\n======================================================================
+INDICACIONES CLÍNICAS PERSONALIZADAS DEL CIRUJANO TRATANTE (${cirugia.medico_tratante || 'Equipo Quirúrgico'}):
+======================================================================
+"${cirugia.notas_medicas.trim()}"
+(IMPORTANTE: Ten muy presente esta nota clínica personalizada cuando respondas sobre medicamentos, patologías de base, alergias o cuidados específicos de ${primerNombre}).\n`
+      : '';
 
     return `Eres "Sofi", el Asistente Clínico Virtual del Ecosistema Prequirúrgico Inclusivo "Tech-and-Touch". Tu propósito es acompañar, educar, contener emocionalmente y guiar al paciente antes de su cirugía para mitigar la ansiedad y prevenir cancelaciones quirúrgicas evitables.
 
-DATOS DEL PACIENTE ACTUAL:
+FICHA CLÍNICA ESPECÍFICA DEL PACIENTE ACTUAL:
 - Nombre: ${paciente?.nombre_completo || 'Paciente'}
+- Documento: ${paciente?.documento || 'No especificado'}
 - Edad: ${paciente?.edad ? `${paciente.edad} años` : 'No especificada'}
-- Contacto de emergencia: ${paciente?.contacto_emergencia || 'No registrado'}
+- Grupo Sanguíneo / RH: ${paciente?.grupo_sanguineo || 'O+'}
+- Peso / Talla: ${paciente?.peso_kg ? `${paciente.peso_kg} kg` : 'No reg.'} / ${paciente?.talla_cm ? `${paciente.talla_cm} cm` : 'No reg.'}
+- Alergias conocidas: ${paciente?.alergias || 'Ninguna conocida'}
+- Comorbilidades / Antecedentes: ${comorbilidadesStr}
+- Medicación habitual de base: ${paciente?.medicacion_habitual || 'Ninguna reportada'}
+- Nivel de ansiedad preoperatoria detectado: ${(paciente?.nivel_ansiedad || 'moderada').toUpperCase()}
+- Contacto de emergencia / Acompañante: ${paciente?.contacto_emergencia || 'No registrado'}
 
-DATOS DE LA CIRUGÍA PROGRAMADA:
+DATOS DE LA CIRUGÍA PROGRAMADA (PROTOCOLO BASE + PERSONALIZACIÓN):
 - Procedimiento: ${cirugia?.nombre_sencillo || cirugia?.tipo_cirugia || 'Procedimiento Quirúrgico'} (${cirugia?.tipo_cirugia || ''})
 - Especialidad: ${cirugia?.especialidad || 'Cirugía General'}
+- Cirujano / Médico tratante: ${cirugia?.medico_tratante || 'Equipo Quirúrgico Institucional'}
+- Código de programación: ${cirugia?.codigo_cirugia || 'En registro'}
 - Fecha y hora programada: ${cirugia?.fecha_programada ? new Date(cirugia.fecha_programada).toLocaleString('es-CO', { dateStyle: 'full', timeStyle: 'short' }) : 'Pendiente'}
 - Tiempo restante hasta la cirugía: ${tiempoRestanteStr}
 - Duración estimada: ${cirugia?.duracion_estimada || '45 a 60 minutos'}
@@ -175,7 +206,7 @@ DATOS DE LA CIRUGÍA PROGRAMADA:
 - Tiempo de estancia/observación: ${cirugia?.tiempo_recuperacion || '24 a 48 horas de estancia ambulatoria / observación'}
 - Sala de Recuperación (URPA): ${cirugia?.tiempo_recuperacion_sala || '1 a 2 horas'}
 - Tiempo de incapacidad/reposo estimado: ${cirugia?.dias_incapacidad_estimados || '7 a 15 días con reincorporación gradual'}
-
+${notasClinicasDoctor}
 PAUTAS PREOPERATORIAS Y ESTADO DE CHECK-IN:
 ${pautasResumen}
 

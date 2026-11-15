@@ -3,43 +3,63 @@ import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { usePacienteStore } from '../../stores/pacienteStore';
-import { MOCK_PACIENTE_A_ID, MOCK_PACIENTE_B_ID } from '../../lib/mockData';
+import { useAuthStore } from '../../stores/authStore';
+import { useChatStore } from '../../stores/chat';
 import { useVoiceCall } from '../../composables/useVoiceCall';
-import { Activity, User, HeartHandshake, Database, PhoneCall, X, ShieldAlert, Phone } from 'lucide-vue-next';
+import {
+  Activity,
+  User,
+  HeartHandshake,
+  Database,
+  PhoneCall,
+  X,
+  ShieldAlert,
+  Phone,
+  LogOut,
+  Stethoscope,
+  ArrowLeft,
+} from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
 const pacienteStore = usePacienteStore();
+const authStore = useAuthStore();
+const chatStore = useChatStore();
 const voiceCall = useVoiceCall();
 const showHelpModal = ref(false);
 
+const isLoginRoute = computed(() => route.path === '/login');
 const isPacienteRoute = computed(() => route.path.startsWith('/paciente'));
 
-function cambiarPaciente(id: string) {
-  pacienteStore.cargarDatosPaciente(id);
-  if (!isPacienteRoute.value) {
-    router.push('/paciente');
+function handleLogout() {
+  if (voiceCall.isCallModalOpen.value) {
+    voiceCall.endCall();
   }
+  chatStore.clearChat();
+  authStore.logout();
+  router.push('/login');
 }
 </script>
 
 <template>
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+  <header v-if="!isLoginRoute" class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       
       <!-- HEADER PARA EL PORTAL DEL PACIENTE (Aislamiento Estricto de Roles) -->
       <div v-if="isPacienteRoute" class="flex items-center justify-between h-16">
         
         <!-- Logo & Marca del Paciente -->
-        <router-link to="/" class="flex items-center gap-3 group focus-ring rounded-lg p-1">
-          <div class="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20 group-hover:bg-teal-700 transition-colors">
+        <div class="flex items-center gap-3 p-1">
+          <div class="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20">
             <HeartHandshake class="w-6 h-6" />
           </div>
           <div>
             <span class="text-lg font-bold text-slate-900 tracking-tight block leading-tight">Tech-and-Touch</span>
-            <span class="text-xs font-semibold text-teal-700 block">Portal de Acompañamiento del Paciente</span>
+            <span class="text-xs font-semibold text-teal-700 block">
+              {{ authStore.isMedico ? 'Vista Previa del Paciente (Modo Médico)' : 'Portal de Acompañamiento del Paciente' }}
+            </span>
           </div>
-        </router-link>
+        </div>
 
         <!-- Datos del Paciente Activo (Centro del Header) -->
         <div class="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-xl bg-teal-50/70 border border-teal-100 text-xs">
@@ -54,9 +74,20 @@ function cambiarPaciente(id: string) {
           </div>
         </div>
 
-        <!-- Acciones del Paciente & Selector Discreto de Testing -->
-        <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Acciones del Paciente y Cierre de Sesión -->
+        <div class="flex items-center gap-2 sm:gap-2.5">
           
+          <!-- Si es Médico previsualizando al paciente, botón para regresar al Tablero Clínico -->
+          <router-link
+            v-if="authStore.isMedico"
+            to="/clinica"
+            class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors"
+            title="Regresar al Tablero Clínico Semáforo"
+          >
+            <ArrowLeft class="w-4 h-4" />
+            <span class="hidden md:inline">Tablero Clínico</span>
+          </router-link>
+
           <!-- Botón Iniciar Llamada con Asistente (100% Voz) -->
           <button
             type="button"
@@ -65,8 +96,8 @@ function cambiarPaciente(id: string) {
             title="Iniciar llamada de voz directa con el Asistente Sofi (Manos libres)"
           >
             <PhoneCall class="w-4 h-4 animate-bounce" />
-            <span class="hidden sm:inline">Iniciar llamada con Asistente</span>
-            <span class="sm:hidden">Llamar Asistente</span>
+            <span class="hidden sm:inline">Llamar a Sofi</span>
+            <span class="sm:hidden">Llamar</span>
           </button>
 
           <!-- Botón de Ayuda & Contacto 24/7 -->
@@ -80,85 +111,77 @@ function cambiarPaciente(id: string) {
             <span class="hidden xl:inline">Directorio Ayuda</span>
           </button>
 
-          <!-- Selector Discreto de Prueba (Testing de Casos) -->
-          <div class="hidden md:flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-medium">
-            <span class="text-slate-400 px-2 font-mono text-[11px]">Prueba:</span>
-            <button
-              @click="cambiarPaciente(MOCK_PACIENTE_A_ID)"
-              class="px-2.5 py-1 rounded transition-colors focus-ring"
-              :class="pacienteStore.currentPacienteId === MOCK_PACIENTE_A_ID ? 'bg-white shadow text-teal-700 font-bold' : 'text-slate-600 hover:text-slate-900'"
-              title="Cargar Paciente A: Carlos Mendoza (Cirugía en 48h)"
-            >
-              Carlos Mendoza (48h)
-            </button>
-            <button
-              @click="cambiarPaciente(MOCK_PACIENTE_B_ID)"
-              class="px-2.5 py-1 rounded transition-colors focus-ring"
-              :class="pacienteStore.currentPacienteId === MOCK_PACIENTE_B_ID ? 'bg-white shadow text-teal-700 font-bold' : 'text-slate-600 hover:text-slate-900'"
-              title="Cargar Paciente B: Elena Restrepo (Cirugía en 6h)"
-            >
-              Elena Restrepo (6h)
-            </button>
-          </div>
-
-          <!-- Salir al Hub -->
-          <router-link
-            to="/"
-            class="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors focus-ring text-xs font-semibold"
-            title="Volver al Hub Principal"
+          <!-- Botón Cerrar Sesión -->
+          <button
+            type="button"
+            @click="handleLogout"
+            class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors focus-ring cursor-pointer"
+            title="Cerrar sesión activa y volver al ingreso"
           >
-            Hub Demo
-          </router-link>
+            <LogOut class="w-4 h-4" />
+            <span class="hidden sm:inline">Cerrar Sesión</span>
+          </button>
 
         </div>
 
       </div>
 
-      <!-- HEADER PARA EL TABLERO CLÍNICO Y HUB DEMO -->
+      <!-- HEADER PARA EL TABLERO CLÍNICO Y HUB -->
       <div v-else class="flex items-center justify-between h-16">
         
         <!-- Logo & Brand -->
-        <router-link to="/" class="flex items-center gap-3 group focus-ring rounded-lg p-1">
+        <router-link to="/clinica" class="flex items-center gap-3 group focus-ring rounded-lg p-1">
           <div class="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20 group-hover:bg-teal-700 transition-colors">
             <HeartHandshake class="w-6 h-6" />
           </div>
           <div>
             <span class="text-lg font-bold text-slate-900 tracking-tight block leading-tight">Tech-and-Touch</span>
-            <span class="text-xs font-medium text-teal-700 block">Ecosistema Prequirúrgico Inclusivo</span>
+            <span class="text-xs font-medium text-teal-700 block">Coordinación Quirúrgica Hospitalaria</span>
           </div>
         </router-link>
 
         <!-- Navigation Links Clínicos -->
         <nav class="hidden md:flex items-center gap-1" aria-label="Navegación clínica">
           <router-link
-            to="/"
-            class="px-3 py-2 rounded-lg text-sm font-semibold transition-colors focus-ring"
-            :class="route.path === '/' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+            to="/clinica"
+            class="px-3.5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors focus-ring"
+            :class="route.path === '/clinica' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
           >
-            Hub Demo
+            <Activity class="w-4 h-4" />
+            Tablero Semáforo
           </router-link>
 
           <router-link
             to="/paciente"
-            class="px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors focus-ring"
+            class="px-3.5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors focus-ring"
             :class="isPacienteRoute ? 'bg-teal-50 text-teal-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
           >
             <User class="w-4 h-4" />
-            Portal del Paciente
+            Vista Previa Paciente
           </router-link>
 
           <router-link
-            to="/clinica"
-            class="px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors focus-ring"
-            :class="route.path === '/clinica' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+            to="/hub"
+            class="px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors focus-ring"
+            :class="route.path === '/hub' ? 'bg-teal-50 text-teal-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
           >
-            <Activity class="w-4 h-4" />
-            Tablero Hospitalario
+            Arquitectura
           </router-link>
         </nav>
 
-        <!-- Supabase Live Status -->
-        <div class="flex items-center gap-3">
+        <!-- Info Médico + Supabase Status + Cerrar Sesión -->
+        <div class="flex items-center gap-2.5">
+          <div
+            v-if="authStore.medicoData"
+            class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs"
+          >
+            <Stethoscope class="w-4 h-4 text-teal-700" />
+            <div>
+              <span class="font-bold text-slate-900 block leading-tight">{{ authStore.medicoData.nombre_completo }}</span>
+              <span class="text-[11px] text-slate-500 block leading-tight">{{ authStore.medicoData.rol }}</span>
+            </div>
+          </div>
+
           <div
             v-if="isSupabaseConfigured"
             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300"
@@ -166,7 +189,7 @@ function cambiarPaciente(id: string) {
           >
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <Database class="w-3.5 h-3.5" />
-            <span class="hidden lg:inline">Supabase Live</span>
+            <span class="hidden xl:inline">Supabase Live</span>
           </div>
           <div
             v-else
@@ -174,8 +197,26 @@ function cambiarPaciente(id: string) {
             title="Operando en Modo Demo Local reactivo"
           >
             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-            <span class="font-medium">Modo Demo Local</span>
+            <span class="hidden sm:inline font-medium">Modo Local</span>
           </div>
+
+          <button
+            v-if="authStore.isAuthenticated"
+            type="button"
+            @click="handleLogout"
+            class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Cerrar sesión activa"
+          >
+            <LogOut class="w-4 h-4" />
+            <span class="hidden sm:inline">Cerrar Sesión</span>
+          </button>
+          <router-link
+            v-else
+            to="/login"
+            class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm transition-colors"
+          >
+            Iniciar Sesión
+          </router-link>
         </div>
 
       </div>

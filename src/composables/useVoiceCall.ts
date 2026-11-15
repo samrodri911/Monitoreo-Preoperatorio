@@ -44,6 +44,8 @@ const errorMessage = ref<string | null>(null);
 const transferReason = ref<string | null>(null);
 const hasNurseBeenAlerted = ref<boolean>(false);
 const callHistory = ref<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+const lastUserTranscript = ref<string>('');
+const lastAssistantResponse = ref<string>('');
 
 let recognitionInstance: any = null;
 let synth: SpeechSynthesis | null = null;
@@ -167,7 +169,13 @@ function setupRecognitionEvents() {
   };
 
   recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
-    if (callStatus.value !== 'listening' || isMuted.value || !isCallActive.value) return;
+    if (!isCallActive.value || isMuted.value) return;
+
+    // Si el usuario ya comenzó a hablar, conmutar de inmediato a escucha
+    if (callStatus.value === 'greeting') {
+      callStatus.value = 'listening';
+    }
+    if (callStatus.value !== 'listening') return;
 
     let interimTranscript = '';
     for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -184,6 +192,7 @@ function setupRecognitionEvents() {
     console.log('[VoiceCall] Escuchado hasta ahora:', currentFullText);
 
     if (currentFullText.length > 0) {
+      lastUserTranscript.value = currentFullText;
       audioLevel.value = Math.min(95, 30 + currentFullText.length * 2);
 
       // Reiniciar temporizador de silencio (1.5 segundos) cada vez que el usuario produce fonemas
@@ -327,37 +336,45 @@ function speak(text: string, onDone?: () => void) {
     return;
   }
 
-  console.log('[VoiceCall] Disparando síntesis de voz neuronal con texto:', clean);
+  console.log('[VoiceCall] Disparando síntesis de voz con texto:', clean);
+
+  let doneFired = false;
+  let safetyWatchdog: any = null;
+
+  const finishTurn = () => {
+    if (doneFired) return;
+    doneFired = true;
+    if (safetyWatchdog) clearTimeout(safetyWatchdog);
+    stopSimulatingAudioWaves();
+    audioLevel.value = 0;
+    if (!isCallActive.value || callStatus.value === 'ending' || callStatus.value === 'transferred' || callStatus.value === 'idle') {
+      return;
+    }
+    if (onDone) {
+      onDone();
+    } else {
+      startListening();
+    }
+  };
+
+  // Watchdog de seguridad: garantiza que el micrófono siempre se active tras el tiempo esperado de habla
+  const maxWaitMs = Math.max(4500, (clean.length / 9) * 1000 + 3000);
+  safetyWatchdog = setTimeout(() => {
+    console.log('[VoiceCall] Watchdog speak(): forzando fin de voz y apertura de micrófono');
+    finishTurn();
+  }, maxWaitMs);
 
   edgeTtsService.playNeuralVoice(
     clean,
     // onEnded
     () => {
       console.log('[VoiceCall] Sofi terminó de hablar. Reabriendo micrófono...');
-      stopSimulatingAudioWaves();
-      audioLevel.value = 0;
-      if (!isCallActive.value || callStatus.value === 'ending' || callStatus.value === 'transferred' || callStatus.value === 'idle') {
-        return;
-      }
-      if (onDone) {
-        onDone();
-      } else {
-        startListening();
-      }
+      finishTurn();
     },
     // onError
     (e) => {
       console.warn('[VoiceCall] Error o interrupción en reproducción:', e);
-      stopSimulatingAudioWaves();
-      audioLevel.value = 0;
-      if (!isCallActive.value || callStatus.value === 'ending' || callStatus.value === 'transferred' || callStatus.value === 'idle') {
-        return;
-      }
-      if (onDone) {
-        onDone();
-      } else {
-        startListening();
-      }
+      finishTurn();
     },
     // options
     {
@@ -432,6 +449,7 @@ async function procesarTurnoDelPaciente(userSpeech: string) {
   // 4. Cambiar estado visual a pensando
   callStatus.value = 'thinking';
   audioLevel.value = 10;
+  lastUserTranscript.value = speech;
 
   const pacienteStore = usePacienteStore();
   const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Paciente';
@@ -521,6 +539,7 @@ Paciente: "${speech}"`;
       { role: 'user', content: speech },
       { role: 'assistant', content: respuestaAsistente }
     );
+    lastAssistantResponse.value = respuestaAsistente;
 
     speak(respuestaAsistente);
   } catch (err: any) {
@@ -531,6 +550,7 @@ Paciente: "${speech}"`;
 
     // Contingencia de voz inmediata
     const fallbackMsg = `Lo siento ${nombre}, tuve un pequeño problema de conexión con mi sistema. ¿Podrías repetirme tu duda o deseas que contactemos a enfermería?`;
+    lastAssistantResponse.value = fallbackMsg;
     speak(fallbackMsg);
   }
 }
@@ -599,7 +619,7 @@ async function transferToNurse(reason = 'Solicitud de contención o apoyo humano
 /**
  * Inicia la llamada conversacional completa
  */
-function startCall() {
+function startCall(options?: { showModal?: boolean; customGreeting?: string }) {
   console.log('[VoiceCall] Iniciando llamada con Asistente Sofi');
   // 1. Limpieza rigurosa previa de cualquier audio o proceso anterior
   resetCallState();
@@ -611,7 +631,7 @@ function startCall() {
   isMuted.value = false;
   callDurationSeconds.value = 0;
   isCallActive.value = true;
-  isCallModalOpen.value = true;
+  isCallModalOpen.value = options?.showModal ?? true;
   callStatus.value = 'greeting';
   callHistory.value = [];
 
@@ -625,7 +645,9 @@ function startCall() {
   const pacienteStore = usePacienteStore();
   const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Carlos';
 
-  const saludoInicial = `Hola ${nombre}, ¿qué duda tienes sobre tu cirugía?`;
+  const saludoInicial = options?.customGreeting || `Hola ${nombre}, ¿qué duda tienes sobre tu cirugía?`;
+  lastAssistantResponse.value = saludoInicial;
+  lastUserTranscript.value = '';
 
   // Síntesis del saludo inicial ultracorto; al terminar, activa el micrófono inmediatamente
   speak(saludoInicial, () => {
@@ -636,10 +658,66 @@ function startCall() {
 }
 
 /**
+ * Inicia llamada 100% Manos Libres desde el Simulador de Pulsera Phygital
+ * (Sin abrir el modal a pantalla completa para mantener visible el wearable)
+ */
+function startWristbandCall(options?: { showModal?: boolean }) {
+  const pacienteStore = usePacienteStore();
+  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Carlos';
+  startCall({
+    showModal: options?.showModal ?? false,
+    customGreeting: `Hola ${nombre}, te escucho por el altavoz de tu pulsera. ¿Qué duda tienes sobre tu cirugía o preparación?`,
+  });
+}
+
+/**
+ * Pronuncia un aviso puntual en el altavoz de la pulsera reutilizando el motor neuronal de Sofi
+ */
+function speakWristbandReminder(
+  text: string,
+  callbacks?: { onStart?: () => void; onEnded?: () => void }
+) {
+  edgeTtsService.stop();
+  const clean = cleanTextForSpeech(text);
+  if (!clean) {
+    callbacks?.onEnded?.();
+    return;
+  }
+  edgeTtsService.playNeuralVoice(
+    clean,
+    () => {
+      callbacks?.onEnded?.();
+    },
+    () => {
+      callbacks?.onEnded?.();
+    },
+    {
+      voice: 'es-CO-SalomeNeural',
+      rate: '+15%',
+      onStart: () => {
+        callbacks?.onStart?.();
+      },
+    }
+  );
+}
+
+/**
+ * Detiene cualquier voz de aviso de la pulsera
+ */
+function stopWristbandSpeech() {
+  edgeTtsService.stop();
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+  }
+}
+
+/**
  * Abre el modal e inicia la llamada
  */
 function openCall() {
-  startCall();
+  startCall({ showModal: true });
 }
 
 /**
@@ -712,6 +790,8 @@ function endCall() {
 
   resetCallState();
   callHistory.value = [];
+  lastUserTranscript.value = '';
+  lastAssistantResponse.value = '';
 }
 
 /**
@@ -742,11 +822,17 @@ export function useVoiceCall() {
     transferReason,
     openCall,
     startCall,
+    startWristbandCall,
+    speakWristbandReminder,
+    stopWristbandSpeech,
     hangUp,
     endCall,
     toggleMute,
     transferToNurse,
     procesarTurnoDelPaciente,
     processUserSpeech,
+    callHistory,
+    lastUserTranscript,
+    lastAssistantResponse,
   };
 }

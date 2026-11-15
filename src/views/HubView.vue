@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { usePacienteStore } from '../stores/pacienteStore';
+import { useAuthStore } from '../stores/authStore';
 import { MOCK_PACIENTE_A_ID, MOCK_PACIENTE_B_ID } from '../lib/mockData';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { Activity, Sparkles, CheckCircle2, AlertOctagon, ArrowRight, Database, Layers } from 'lucide-vue-next';
 
 const router = useRouter();
 const pacienteStore = usePacienteStore();
+const authStore = useAuthStore();
 
-function navegarAPaciente(pacienteId: string) {
-  pacienteStore.cargarDatosPaciente(pacienteId);
+async function navegarAPaciente(pacienteId: string) {
+  await authStore.loginRapidoPaciente(pacienteId);
+  await pacienteStore.cargarDatosPaciente(pacienteId);
   router.push('/paciente');
 }
 </script>

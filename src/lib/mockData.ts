@@ -1,4 +1,14 @@
-import type { Paciente, Cirugia, Pauta, Checkin, Alerta, MaterialEducativo } from '../types/database.types';
+import type {
+  Paciente,
+  Cirugia,
+  Pauta,
+  Checkin,
+  Alerta,
+  MaterialEducativo,
+  PersonalClinico,
+  CatalogoCirugia,
+  NivelAnsiedad,
+} from '../types/database.types';
 
 // IDs fijos para consistencia en modo demo
 export const MOCK_PACIENTE_A_ID = '11111111-1111-4111-a111-111111111111';
@@ -7,10 +17,225 @@ export const MOCK_CIRUGIA_A_ID = '22222222-2222-4222-a222-222222222222';
 export const MOCK_PACIENTE_B_ID = '33333333-3333-4333-b333-333333333333';
 export const MOCK_CIRUGIA_B_ID = '44444444-4444-4444-b444-444444444444';
 
+export const CATALOGO_APENDICE_ID = 'cat-apendicectomia-lap';
+export const CATALOGO_CADERA_ID = 'cat-artroplastia-cadera';
+export const CATALOGO_COLECISTECTOMIA_ID = 'cat-colecistectomia-lap';
+export const CATALOGO_HERNIA_ID = 'cat-herniorrafia-inguinal';
+
 // Fechas dinámicas calculadas al momento de carga
 const now = new Date();
 const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
 const in6Hours = new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
+
+export const initialCatalogoCirugias: CatalogoCirugia[] = [
+  {
+    id: CATALOGO_APENDICE_ID,
+    codigo_base: 'PROT-APEN-01',
+    tipo_cirugia: 'Apendicectomía Laparoscópica',
+    nombre_sencillo: 'Cirugía de apéndice por mínima invasión (3 puertos)',
+    especialidad: 'Cirugía General',
+    tipo_anestesia: 'Anestesia General Balanceada',
+    sensacion_anestesia:
+      'Sentirás una suave calidez en el brazo y te quedarás plácidamente dormido en segundos sin sentir dolor alguno.',
+    duracion_estimada: '45 a 60 minutos',
+    tiempo_recuperacion: '24 a 48 horas de estancia ambulatoria / observación',
+    tiempo_recuperacion_sala: '1 a 2 horas en Sala de Recuperación (URPA)',
+    dias_incapacidad_estimados: '7 a 12 días con reincorporación gradual',
+    horas_ayuno_solidos: 8,
+    descripcion_ayuno_solidos:
+      'Cero alimentos sólidos, lácteos, jugos con pulpa ni café con leche. El estómago debe estar completamente vacío para una inducción anestésica segura.',
+    horas_ayuno_liquidos: 2,
+    descripcion_ayuno_liquidos:
+      'Suspender absolutamente el consumo de agua, aromáticas o cualquier líquido por vía oral.',
+    incluir_suspension_farmacos: true,
+    horas_suspension_farmacos: 24,
+    detalle_farmacos_base:
+      'Suspender antiinflamatorios (ibuprofeno, naproxeno, aspirina) y anticoagulantes según orden médica previa para evitar riesgo de sangrado.',
+    incluir_ducha_antiseptica: true,
+    horas_ducha_antiseptica: 12,
+    descripcion_ducha_antiseptica:
+      'Realizar baño corporal completo con jabón de clorhexidina, haciendo énfasis especial en el ombligo y la zona abdominal inferior derecha.',
+    pauta_especifica_titulo: 'Vigilancia de Signos de Alarma (Fiebre o Dolor Intenso)',
+    pauta_especifica_descripcion:
+      'Reportar de inmediato si presenta fiebre >38°C o dolor abdominal punzante súbito antes del ingreso para descartar perforación.',
+    pauta_especifica_horas: 6,
+    video_url: '/videos/cirugia-apendice.mp4',
+    video_titulo: 'Cápsula Educativa: ¿Cómo se realiza tu Apendicectomía Laparoscópica?',
+    video_descripcion:
+      'Recorrido visual paso a paso sobre la extracción segura del apéndice mediante 3 microincisiones milimétricas guiadas por cámara de alta definición.',
+    infografia_url: '/images/infografia-apendice.png',
+    infografia_titulo: 'Infografía Anatómica: Técnica de 3 Puertos y Recuperación Temprana',
+    infografia_descripcion:
+      'Esquema ilustrado de los 3 puertos laparoscópicos (umbilical y suprapúbicos), insuflación suave con gas CO₂ medicinal y rápida cicatrización.',
+    explicacion_sofi:
+      'Explica el proceso en lenguaje cotidiano, destacando que el equipo médico estará a su lado monitoreando cada segundo, que estará bajo anestesia general sin sentir dolor, y que se extrae el apéndice inflamado mediante 3 incisiones milimétricas (una en el ombligo y dos en el bajo abdomen) con microcámara para una recuperación rápida con mínimo dolor muscular.',
+    cuidados_especificos_sofi:
+      'Si el paciente menciona fiebre superior a 38.5°C o dolor abdominal punzante insoportable en el lado inferior derecho previo al ingreso, ordénale de inmediato acudir a Urgencias para descartar perforación del apéndice o peritonitis. En el posoperatorio, recuérdale caminar suave y que una molestia leve en el hombro por el gas CO₂ es normal y desaparece en 24-48h.',
+    created_at: now.toISOString(),
+  },
+  {
+    id: CATALOGO_CADERA_ID,
+    codigo_base: 'PROT-CAD-02',
+    tipo_cirugia: 'Artroplastia Total de Cadera',
+    nombre_sencillo: 'Reemplazo articular total de cadera con prótesis biocompatible',
+    especialidad: 'Ortopedia y Traumatología',
+    tipo_anestesia: 'Anestesia Regional (Raquídea/Epidural) + Sedación Consciente',
+    sensacion_anestesia:
+      'Adormecimiento completo de la mitad inferior de tu cuerpo con una agradable sensación de descanso tranquilo sin dolor.',
+    duracion_estimada: '60 a 90 minutos',
+    tiempo_recuperacion: '48 a 72 horas de hospitalización y rehabilitación asistida',
+    tiempo_recuperacion_sala: '2 a 3 horas en Sala de Recuperación (URPA)',
+    dias_incapacidad_estimados: '30 a 45 días con fisioterapia progresiva y apoyo en caminador',
+    horas_ayuno_solidos: 8,
+    descripcion_ayuno_solidos:
+      'Suspender por completo alimentos sólidos, caldos con grasa, lácteos y bebidas oscuras al menos 8 horas antes.',
+    horas_ayuno_liquidos: 2,
+    descripcion_ayuno_liquidos:
+      'No ingerir ni una gota de agua, infusiones ni caramelos durante las últimas 2 horas previas a quirófano.',
+    incluir_suspension_farmacos: true,
+    horas_suspension_farmacos: 48,
+    detalle_farmacos_base:
+      'Suspender anticoagulantes, aspirina y antiinflamatorios 48h antes según esquema de anestesiología para profilaxis de hematoma espinal y sangrado.',
+    incluir_ducha_antiseptica: true,
+    horas_ducha_antiseptica: 12,
+    descripcion_ducha_antiseptica:
+      'Higiene corporal rigurosa con jabón quirúrgico de clorhexidina desde la cintura hasta los pies, enfatizando cadera, ingle y muslo.',
+    pauta_especifica_titulo: 'Alistamiento de Caminador / Bastón y Adecuación del Hogar',
+    pauta_especifica_descripcion:
+      'Tener listo el caminador ortopédico para el alta, zapatos cerrados antideslizantes y retirar alfombras sueltas en casa.',
+    pauta_especifica_horas: 24,
+    video_url: '/videos/cirugia-cadera.mp4',
+    video_titulo: 'Cápsula Educativa: ¿En qué consiste el Reemplazo Total de Cadera?',
+    video_descripcion:
+      'Animación biomecánica que muestra cómo se sustituye el cartílago desgastado por la artrosis mediante una copa acetabular y vástago de titanio.',
+    infografia_url: '/images/infografia-cadera.png',
+    infografia_titulo: 'Infografía Anatómica: Componentes Protésicos y Posturas Seguras',
+    infografia_descripcion:
+      'Guía visual de los 4 componentes biomecánicos de la prótesis y las reglas de oro posturales (no cruzar piernas y no flexionar más de 90°).',
+    explicacion_sofi:
+      'Explica en lenguaje cálido que bajo anestesia regional controlada con sedación suave no sentirá dolor en las piernas, y que se sustituye la superficie articular desgastada por la artrosis por una prótesis biocompatible (copa acetabular, inserto de polietileno, esfera pulida y vástago de titanio) que elimina el roce óseo doloroso y permite caminar con andador desde las primeras 24 horas.',
+    cuidados_especificos_sofi:
+      'Prevención estricta de luxación: Prohibido cruzar las piernas en tijera al sentarse o acostarse; evitar flexiones de cadera superiores a 90 grados; promover asiento elevado en inodoro y calzador largo. Si manifiesta dolor punzante en la pantorrilla con hinchazón (sospecha de trombosis) o rotación anormal de la pierna operada, acudir de inmediato a Urgencias.',
+    created_at: now.toISOString(),
+  },
+  {
+    id: CATALOGO_COLECISTECTOMIA_ID,
+    codigo_base: 'PROT-COLE-03',
+    tipo_cirugia: 'Colecistectomía Laparoscópica',
+    nombre_sencillo: 'Extracción de la vesícula biliar por videolaparoscopia',
+    especialidad: 'Cirugía General y Digestiva',
+    tipo_anestesia: 'Anestesia General Balanceada',
+    sensacion_anestesia:
+      'Te quedarás profundamente dormido en pocos segundos y despertarás cuando la cirugía haya concluido sin haber sentido dolor.',
+    duracion_estimada: '60 a 75 minutos',
+    tiempo_recuperacion: '24 horas de observación hospitalaria o alta ambulatoria',
+    tiempo_recuperacion_sala: '1 a 2 horas en Sala de Recuperación (URPA)',
+    dias_incapacidad_estimados: '8 a 14 días con dieta baja en grasas',
+    horas_ayuno_solidos: 8,
+    descripcion_ayuno_solidos:
+      'Ayuno absoluto de alimentos sólidos, grasas y lácteos durante las 8 horas previas para mantener la vesícula en reposo.',
+    horas_ayuno_liquidos: 2,
+    descripcion_ayuno_liquidos:
+      'Suspensión total de agua y líquidos claros 2 horas antes del procedimiento.',
+    incluir_suspension_farmacos: true,
+    horas_suspension_farmacos: 24,
+    detalle_farmacos_base:
+      'Suspender antiinflamatorios no esteroideos (AINEs) y suplementos herbales. Si toma antihipertensivos, consultar toma con sorbo mínimo de agua.',
+    incluir_ducha_antiseptica: true,
+    horas_ducha_antiseptica: 12,
+    descripcion_ducha_antiseptica:
+      'Baño general con jabón antiséptico haciendo énfasis en el abdomen superior derecho y la región umbilical.',
+    pauta_especifica_titulo: 'Dieta Liviana Libre de Grasas el Día Previo',
+    pauta_especifica_descripcion:
+      'Durante las 24 horas previas al ayuno, evitar frituras, salsas, embutidos o lácteos enteros para prevenir cólicos biliares.',
+    pauta_especifica_horas: 24,
+    video_url: '/videos/cirugia-apendice.mp4',
+    video_titulo: 'Cápsula Educativa: Cirugía Laparoscópica Abdominal por Mínima Invasión',
+    video_descripcion:
+      'Conoce cómo funciona el abordaje laparoscópico mediante microcámara de alta definición para extraer la vesícula con rápida recuperación.',
+    infografia_url: '/images/infografia-apendice.png',
+    infografia_titulo: 'Infografía: Abordaje Laparoscópico y Cuidados Digestivos',
+    infografia_descripcion:
+      'Ubicación de las pequeñas incisiones abdominales, beneficios del abordaje mínimamente invasivo y pautas de alimentación posoperatoria.',
+    explicacion_sofi:
+      'Explica con calidez que la extracción de la vesícula biliar se realiza por videolaparoscopia a través de pequeñas incisiones milimétricas bajo anestesia general segura, permitiendo que el hígado siga produciendo bilis normalmente para la digestión y logrando un retorno temprano a casa.',
+    cuidados_especificos_sofi:
+      'Vigilar signos de alarma previos como coloración amarilla en ojos/piel (ictericia), fiebre o dolor intenso en la boca del estómago. Recordar mantener dieta baja en grasas durante las primeras semanas posoperatorias.',
+    created_at: now.toISOString(),
+  },
+  {
+    id: CATALOGO_HERNIA_ID,
+    codigo_base: 'PROT-HERN-04',
+    tipo_cirugia: 'Herniorrafia Inguinal Laparoscópica con Malla',
+    nombre_sencillo: 'Corrección de hernia inguinal con malla biocompatible',
+    especialidad: 'Cirugía General y Pared Abdominal',
+    tipo_anestesia: 'Anestesia General o Regional según valoración preanestésica',
+    sensacion_anestesia:
+      'Estarás completamente relajado y sin dolor durante toda la reparación de la pared abdominal.',
+    duracion_estimada: '45 a 60 minutos',
+    tiempo_recuperacion: 'Estancia ambulatoria (alta el mismo día tras 6-8 horas de observación)',
+    tiempo_recuperacion_sala: '1 a 2 horas en Sala de Recuperación (URPA)',
+    dias_incapacidad_estimados: '7 a 14 días (evitando alzar peso mayor a 5 kg por 4 semanas)',
+    horas_ayuno_solidos: 8,
+    descripcion_ayuno_solidos:
+      'No consumir alimentos sólidos, lácteos ni bebidas espesas desde 8 horas antes de la hora programada.',
+    horas_ayuno_liquidos: 2,
+    descripcion_ayuno_liquidos:
+      'Suspender agua y líquidos claros 2 horas antes del ingreso a cirugía.',
+    incluir_suspension_farmacos: true,
+    horas_suspension_farmacos: 24,
+    detalle_farmacos_base:
+      'Suspender aspirina, ibuprofeno y anticoagulantes según indicación médica para prevenir hematomas en la región inguinal.',
+    incluir_ducha_antiseptica: true,
+    horas_ducha_antiseptica: 12,
+    descripcion_ducha_antiseptica:
+      'Baño corporal completo con jabón de clorhexidina enfatizando ombligo y región inguinal (sin rasurar con cuchilla en casa).',
+    pauta_especifica_titulo: 'Prohibición de Rasurado con Cuchilla en Casa',
+    pauta_especifica_descripcion:
+      'No afeitar la zona inguinal con cuchilla en casa para evitar microheridas que aumenten el riesgo de infección.',
+    pauta_especifica_horas: 18,
+    video_url: '/videos/cirugia-apendice.mp4',
+    video_titulo: 'Cápsula Educativa: Reparación Laparoscópica de Pared Abdominal',
+    video_descripcion:
+      'Explicación clara sobre el refuerzo de la pared inguinal con malla ultraligera mediante mínima invasión.',
+    infografia_url: '/images/infografia-apendice.png',
+    infografia_titulo: 'Infografía: Refuerzo con Malla y Cuidados de Esfuerzo Físico',
+    infografia_descripcion:
+      'Ilustración de la reparación sin tensión y guía de reincorporación progresiva sin levantar objetos pesados.',
+    explicacion_sofi:
+      'Explica de manera sencilla que se refuerza el punto débil de la pared abdominal colocando una malla flexible biocompatible mediante mínimas incisiones, sin tensión muscular y con alta ambulatoria temprana.',
+    cuidados_especificos_sofi:
+      'Advertir que no debe rasurarse con cuchilla en casa antes de la cirugía. Si la hernia se torna dura, roja, no regresa a su sitio y produce dolor intenso o vómito (sospecha de estrangulamiento), acudir a Urgencias de inmediato.',
+    created_at: now.toISOString(),
+  },
+];
+
+export const initialMockPersonalClinico: (PersonalClinico & { password_Demo: string })[] = [
+  {
+    id: 'med-1111-2222',
+    nombre_completo: 'Dr. Alejandro Ramírez',
+    email: 'dr.ramirez@hospital.org',
+    rol: 'Cirujano Jefe',
+    especialidad: 'Cirugía General y Laparoscopia',
+    password_Demo: 'Clinica2026*',
+  },
+  {
+    id: 'med-3333-4444',
+    nombre_completo: 'Dra. Sofía Valencia',
+    email: 'dra.valencia@hospital.org',
+    rol: 'Cirujana Ortopedista',
+    especialidad: 'Ortopedia y Traumatología',
+    password_Demo: 'Clinica2026*',
+  },
+  {
+    id: 'med-5555-6666',
+    nombre_completo: 'Jefe Laura Gómez',
+    email: 'enfermeria@hospital.org',
+    rol: 'Coordinadora Prequirúrgica',
+    especialidad: 'Enfermería Quirúrgica',
+    password_Demo: 'Clinica2026*',
+  },
+];
 
 export const initialMockPacientes: Paciente[] = [
   {
@@ -20,6 +245,15 @@ export const initialMockPacientes: Paciente[] = [
     telefono: '+57 300 123 4567',
     edad: 58,
     contacto_emergencia: 'Marta Mendoza (Hija) - 301 987 6543',
+    email: 'carlos.mendoza@ejemplo.com',
+    pin_acceso: '1234',
+    grupo_sanguineo: 'O+',
+    peso_kg: 78,
+    talla_cm: 172,
+    alergias: 'Ninguna conocida',
+    comorbilidades: ['Hipertensión Arterial (HTA)'],
+    medicacion_habitual: 'Losartán 50mg cada 12 horas',
+    nivel_ansiedad: 'moderada',
     created_at: now.toISOString(),
   },
   {
@@ -29,6 +263,15 @@ export const initialMockPacientes: Paciente[] = [
     telefono: '+57 312 456 7890',
     edad: 67,
     contacto_emergencia: 'Andrés Gómez (Esposo) - 315 222 3344',
+    email: 'elena.restrepo@ejemplo.com',
+    pin_acceso: '5678',
+    grupo_sanguineo: 'A+',
+    peso_kg: 65,
+    talla_cm: 160,
+    alergias: 'Alergia leve a Penicilina',
+    comorbilidades: ['Artrosis Severa de Cadera', 'Hipertensión Arterial (HTA)'],
+    medicacion_habitual: 'Amlodipino 5mg diario, Acetaminofén condicional',
+    nivel_ansiedad: 'alta',
     created_at: now.toISOString(),
   }
 ];
@@ -37,7 +280,11 @@ export const initialMockCirugias: Cirugia[] = [
   {
     id: MOCK_CIRUGIA_A_ID,
     paciente_id: MOCK_PACIENTE_A_ID,
+    catalogo_cirugia_id: CATALOGO_APENDICE_ID,
     tipo_cirugia: 'Apendicectomía Laparoscópica',
+    codigo_cirugia: 'CIR-2026-A',
+    medico_tratante: 'Dr. Alejandro Ramírez',
+    notas_medicas: 'Paciente hipertenso controlado con Losartán 50mg. Autorizado tomar su dosis matutina con un sorbo mínimo de agua 3 horas antes del ingreso. Reforzar tranquilidad sobre la anestesia general.',
     nombre_sencillo: 'Cirugía de apéndice por mínima invasión (laparoscopia)',
     especialidad: 'Cirugía General',
     duracion_estimada: '45 a 60 minutos',
@@ -53,7 +300,11 @@ export const initialMockCirugias: Cirugia[] = [
   {
     id: MOCK_CIRUGIA_B_ID,
     paciente_id: MOCK_PACIENTE_B_ID,
+    catalogo_cirugia_id: CATALOGO_CADERA_ID,
     tipo_cirugia: 'Artroplastia Total de Cadera',
+    codigo_cirugia: 'CIR-2026-B',
+    medico_tratante: 'Dra. Sofía Valencia',
+    notas_medicas: 'Paciente con artrosis severa bilateral y alergia a Penicilina (usar profilaxis antibiótica alternativa). Prioridad en educación temprana sobre uso de caminador y prohibición de cruzar las piernas.',
     nombre_sencillo: 'Reemplazo total de cadera con prótesis',
     especialidad: 'Ortopedia y Traumatología',
     duracion_estimada: '60 a 90 minutos',
@@ -653,9 +904,289 @@ La articulación coxofemoral conecta el fémur con la pelvis. Cuando el cartíla
     tipo_recurso: 'articulo',
     titulo: '¿Qué signos de alarma debo reportar de urgencia?',
     descripcion_corta: 'Identificación de luxación, trombosis o infección.',
-    contenido_markdown: 'Debes consultar de urgencias si presentas:\\n- Dolor agudo y súbito en la cadera con imposibilidad de apoyar o si notas que la pierna operada se ve más corta o girada hacia afuera (sospecha de luxación).\\n- Dolor punzante o hinchazón intensa en la pantorrilla (sospecha de trombosis venosa).\\n- Fiebre superior a 38°C o secreción purulenta en la herida quirúrgica.',
+    contenido_markdown: 'Debes consultar de urgencias si presentas:\n- Dolor agudo y súbito en la cadera con imposibilidad de apoyar o si notas que la pierna operada se ve más corta o girada hacia afuera (sospecha de luxación).\n- Dolor punzante o hinchazón intensa en la pantorrilla (sospecha de trombosis venosa).\n- Fiebre superior a 38°C o secreción purulenta en la herida quirúrgica.',
     url_recurso: null,
     orden_visualizacion: 33,
     created_at: now.toISOString()
   }
 ];
+
+// ============================================================================
+// CAPA DE PERSISTENCIA HÍBRIDA LOCAL (Sincroniza nuevos registros entre sesiones)
+// ============================================================================
+const STORAGE_KEY_DYNAMIC_DATA = 'tech_touch_dynamic_records_v1';
+const STORAGE_KEY_EXTENDED_META = 'tech_touch_extended_meta_v1';
+const STORAGE_KEY_CATALOGO_CIRUGIAS = 'tech_touch_catalogo_cirugias_v1';
+
+interface StoredDynamicRecords {
+  pacientes: Paciente[];
+  cirugias: Cirugia[];
+  pautas: Pauta[];
+  checkins: Checkin[];
+  alertas: Alerta[];
+}
+
+export interface ExtendedPacienteMeta {
+  pin_acceso: string;
+  email?: string;
+  grupo_sanguineo?: string | null;
+  peso_kg?: number | null;
+  talla_cm?: number | null;
+  alergias?: string | null;
+  comorbilidades?: string[] | null;
+  medicacion_habitual?: string | null;
+  nivel_ansiedad?: NivelAnsiedad | null;
+}
+
+export interface ExtendedCirugiaMeta {
+  catalogo_cirugia_id?: string | null;
+  codigo_cirugia?: string;
+  medico_tratante?: string;
+  notas_medicas?: string;
+}
+
+export interface ExtendedClinicalMeta {
+  pacientePinMap: Record<string, ExtendedPacienteMeta>; // key: documento o paciente.id
+  cirugiaMetaMap: Record<string, ExtendedCirugiaMeta>; // key: cirugia.id o paciente.id
+}
+
+export function loadPersistedCatalogoCirugias(): CatalogoCirugia[] {
+  if (typeof window === 'undefined') return initialCatalogoCirugias;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CATALOGO_CIRUGIAS);
+    if (!raw) return initialCatalogoCirugias;
+    const savedList: CatalogoCirugia[] = JSON.parse(raw);
+    for (const item of savedList) {
+      const idx = initialCatalogoCirugias.findIndex(
+        c => c.id === item.id || c.tipo_cirugia.toLowerCase() === item.tipo_cirugia.toLowerCase()
+      );
+      if (idx >= 0) {
+        initialCatalogoCirugias[idx] = item;
+      } else {
+        initialCatalogoCirugias.push(item);
+      }
+    }
+  } catch (e) {
+    console.warn('[mockData] Error cargando catálogo de cirugías:', e);
+  }
+  return initialCatalogoCirugias;
+}
+
+export function saveCatalogoCirugiaLocally(item: CatalogoCirugia): CatalogoCirugia[] {
+  const idx = initialCatalogoCirugias.findIndex(
+    c => c.id === item.id || c.tipo_cirugia.toLowerCase() === item.tipo_cirugia.toLowerCase()
+  );
+  if (idx >= 0) {
+    initialCatalogoCirugias[idx] = item;
+  } else {
+    initialCatalogoCirugias.unshift(item);
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY_CATALOGO_CIRUGIAS, JSON.stringify(initialCatalogoCirugias));
+    } catch (e) {
+      console.warn('[mockData] Error guardando catálogo de cirugías:', e);
+    }
+  }
+  return [...initialCatalogoCirugias];
+}
+
+export function findCatalogoCirugia(tipoOrId?: string | null): CatalogoCirugia | undefined {
+  if (!tipoOrId) return undefined;
+  loadPersistedCatalogoCirugias();
+  const q = tipoOrId.trim().toLowerCase();
+  return (
+    initialCatalogoCirugias.find(c => c.id.toLowerCase() === q) ||
+    initialCatalogoCirugias.find(c => c.tipo_cirugia.toLowerCase() === q) ||
+    initialCatalogoCirugias.find(
+      c => q.includes(c.tipo_cirugia.toLowerCase()) || c.tipo_cirugia.toLowerCase().includes(q)
+    )
+  );
+}
+
+export function getExtendedClinicalMeta(): ExtendedClinicalMeta {
+  if (typeof window === 'undefined') {
+    return { pacientePinMap: {}, cirugiaMetaMap: {} };
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_EXTENDED_META);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn('[mockData] Error leyendo metadatos extendidos:', e);
+  }
+  return { pacientePinMap: {}, cirugiaMetaMap: {} };
+}
+
+export function saveExtendedClinicalMeta(
+  paciente: Paciente,
+  cirugia: Cirugia
+) {
+  if (typeof window === 'undefined') return;
+  const current = getExtendedClinicalMeta();
+  const pacMeta: ExtendedPacienteMeta = {
+    pin_acceso: paciente.pin_acceso || paciente.documento.slice(-4),
+    email: paciente.email || undefined,
+    grupo_sanguineo: paciente.grupo_sanguineo ?? null,
+    peso_kg: paciente.peso_kg ?? null,
+    talla_cm: paciente.talla_cm ?? null,
+    alergias: paciente.alergias ?? null,
+    comorbilidades: paciente.comorbilidades ?? null,
+    medicacion_habitual: paciente.medicacion_habitual ?? null,
+    nivel_ansiedad: paciente.nivel_ansiedad ?? null,
+  };
+  current.pacientePinMap[paciente.id] = pacMeta;
+  current.pacientePinMap[paciente.documento] = pacMeta;
+
+  const cirMeta: ExtendedCirugiaMeta = {
+    catalogo_cirugia_id: cirugia.catalogo_cirugia_id ?? null,
+    codigo_cirugia: cirugia.codigo_cirugia || undefined,
+    medico_tratante: cirugia.medico_tratante || undefined,
+    notas_medicas: cirugia.notas_medicas || undefined,
+  };
+  current.cirugiaMetaMap[cirugia.id] = cirMeta;
+  current.cirugiaMetaMap[cirugia.paciente_id] = cirMeta;
+  try {
+    localStorage.setItem(STORAGE_KEY_EXTENDED_META, JSON.stringify(current));
+  } catch (e) {
+    console.warn('[mockData] Error guardando metadatos extendidos:', e);
+  }
+}
+
+export function enrichPacienteWithMeta(pac: Paciente): Paciente {
+  const meta = getExtendedClinicalMeta();
+  const byId = meta.pacientePinMap[pac.id];
+  const byDoc = meta.pacientePinMap[pac.documento];
+  const seedMatch = initialMockPacientes.find(p => p.documento === pac.documento || p.id === pac.id);
+  return {
+    ...pac,
+    pin_acceso: pac.pin_acceso || byId?.pin_acceso || byDoc?.pin_acceso || seedMatch?.pin_acceso || pac.documento.slice(-4),
+    email: pac.email || byId?.email || byDoc?.email || seedMatch?.email || null,
+    grupo_sanguineo: pac.grupo_sanguineo || byId?.grupo_sanguineo || byDoc?.grupo_sanguineo || seedMatch?.grupo_sanguineo || null,
+    peso_kg: pac.peso_kg ?? byId?.peso_kg ?? byDoc?.peso_kg ?? seedMatch?.peso_kg ?? null,
+    talla_cm: pac.talla_cm ?? byId?.talla_cm ?? byDoc?.talla_cm ?? seedMatch?.talla_cm ?? null,
+    alergias: pac.alergias || byId?.alergias || byDoc?.alergias || seedMatch?.alergias || null,
+    comorbilidades: pac.comorbilidades || byId?.comorbilidades || byDoc?.comorbilidades || seedMatch?.comorbilidades || null,
+    medicacion_habitual: pac.medicacion_habitual || byId?.medicacion_habitual || byDoc?.medicacion_habitual || seedMatch?.medicacion_habitual || null,
+    nivel_ansiedad: pac.nivel_ansiedad || byId?.nivel_ansiedad || byDoc?.nivel_ansiedad || seedMatch?.nivel_ansiedad || null,
+  };
+}
+
+export function enrichCirugiaWithMeta(cir: Cirugia): Cirugia {
+  const meta = getExtendedClinicalMeta();
+  const byCirId = meta.cirugiaMetaMap[cir.id];
+  const byPacId = meta.cirugiaMetaMap[cir.paciente_id];
+  const seedMatch = initialMockCirugias.find(c => c.id === cir.id || c.paciente_id === cir.paciente_id);
+  const catMatch = findCatalogoCirugia(cir.catalogo_cirugia_id || byCirId?.catalogo_cirugia_id || cir.tipo_cirugia);
+  return {
+    ...cir,
+    catalogo_cirugia_id: cir.catalogo_cirugia_id || byCirId?.catalogo_cirugia_id || byPacId?.catalogo_cirugia_id || seedMatch?.catalogo_cirugia_id || catMatch?.id || null,
+    codigo_cirugia: cir.codigo_cirugia || byCirId?.codigo_cirugia || byPacId?.codigo_cirugia || seedMatch?.codigo_cirugia || null,
+    medico_tratante: cir.medico_tratante || byCirId?.medico_tratante || byPacId?.medico_tratante || seedMatch?.medico_tratante || 'Dr. Alejandro Ramírez',
+    notas_medicas: cir.notas_medicas || byCirId?.notas_medicas || byPacId?.notas_medicas || seedMatch?.notas_medicas || null,
+    nombre_sencillo: cir.nombre_sencillo || catMatch?.nombre_sencillo || cir.tipo_cirugia,
+    especialidad: cir.especialidad || catMatch?.especialidad || 'Cirugía General',
+    duracion_estimada: cir.duracion_estimada || catMatch?.duracion_estimada || '45 a 60 minutos',
+    tipo_anestesia: cir.tipo_anestesia || catMatch?.tipo_anestesia || 'Anestesia General',
+    sensacion_anestesia: cir.sensacion_anestesia || catMatch?.sensacion_anestesia || 'Estarás plácidamente dormido y sin dolor.',
+    tiempo_recuperacion: cir.tiempo_recuperacion || catMatch?.tiempo_recuperacion || '24 a 48 horas de observación',
+    tiempo_recuperacion_sala: cir.tiempo_recuperacion_sala || catMatch?.tiempo_recuperacion_sala || '1 a 2 horas en URPA',
+    dias_incapacidad_estimados: cir.dias_incapacidad_estimados || catMatch?.dias_incapacidad_estimados || '7 a 15 días',
+  };
+}
+
+export function loadPersistedDynamicRecords(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DYNAMIC_DATA);
+    if (!raw) return;
+    const data: StoredDynamicRecords = JSON.parse(raw);
+
+    for (const p of data.pacientes || []) {
+      if (!initialMockPacientes.some(existing => existing.id === p.id || existing.documento === p.documento)) {
+        initialMockPacientes.push(p);
+      }
+    }
+    for (const c of data.cirugias || []) {
+      if (!initialMockCirugias.some(existing => existing.id === c.id)) {
+        initialMockCirugias.push(c);
+      }
+    }
+    for (const pt of data.pautas || []) {
+      if (!initialMockPautas.some(existing => existing.id === pt.id)) {
+        initialMockPautas.push(pt);
+      }
+    }
+    for (const ch of data.checkins || []) {
+      if (!initialMockCheckins.some(existing => existing.id === ch.id)) {
+        initialMockCheckins.push(ch);
+      }
+    }
+    for (const al of data.alertas || []) {
+      if (!initialMockAlertas.some(existing => existing.id === al.id)) {
+        initialMockAlertas.unshift(al);
+      }
+    }
+  } catch (e) {
+    console.warn('[mockData] Error cargando registros dinámicos:', e);
+  }
+}
+
+export function persistNewRegistrationLocally(
+  paciente: Paciente,
+  cirugia: Cirugia,
+  pautas: Pauta[],
+  checkins: Checkin[],
+  alerta: Alerta
+): void {
+  // Actualizar arreglos en memoria
+  const existingPacIdx = initialMockPacientes.findIndex(p => p.id === paciente.id || p.documento === paciente.documento);
+  if (existingPacIdx >= 0) {
+    initialMockPacientes[existingPacIdx] = paciente;
+  } else {
+    initialMockPacientes.push(paciente);
+  }
+
+  if (!initialMockCirugias.some(c => c.id === cirugia.id)) {
+    initialMockCirugias.unshift(cirugia);
+  }
+  for (const pt of pautas) {
+    if (!initialMockPautas.some(existing => existing.id === pt.id)) {
+      initialMockPautas.push(pt);
+    }
+  }
+  for (const ch of checkins) {
+    if (!initialMockCheckins.some(existing => existing.id === ch.id)) {
+      initialMockCheckins.push(ch);
+    }
+  }
+  if (!initialMockAlertas.some(a => a.id === alerta.id)) {
+    initialMockAlertas.unshift(alerta);
+  }
+
+  saveExtendedClinicalMeta(paciente, cirugia);
+
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DYNAMIC_DATA);
+    const current: StoredDynamicRecords = raw
+      ? JSON.parse(raw)
+      : { pacientes: [], cirugias: [], pautas: [], checkins: [], alertas: [] };
+
+    current.pacientes = current.pacientes.filter(p => p.id !== paciente.id && p.documento !== paciente.documento);
+    current.pacientes.push(paciente);
+    current.cirugias.push(cirugia);
+    current.pautas.push(...pautas);
+    current.checkins.push(...checkins);
+    current.alertas.unshift(alerta);
+
+    localStorage.setItem(STORAGE_KEY_DYNAMIC_DATA, JSON.stringify(current));
+  } catch (e) {
+    console.warn('[mockData] Error guardando registro en localStorage:', e);
+  }
+}
+
+// Hidratar inmediatamente al importar el módulo
+loadPersistedCatalogoCirugias();
+loadPersistedDynamicRecords();
+

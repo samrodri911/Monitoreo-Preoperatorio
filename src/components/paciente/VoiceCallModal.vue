@@ -10,7 +10,8 @@ import {
   Phone,
   Sparkles,
   HeartHandshake,
-  Bot
+  Bot,
+  Watch,
 } from 'lucide-vue-next';
 
 const voiceCall = useVoiceCall();
@@ -135,10 +136,22 @@ const statusBadge = computed(() => {
               </div>
             </div>
 
-            <!-- Contador de Duración -->
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-mono font-bold text-teal-200">
-              <span class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
-              <span>{{ voiceCall.callDurationFormatted.value }}</span>
+            <!-- Controles superiores: Minimizar a Pulsera y Duración -->
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                @click="voiceCall.isCallModalOpen.value = false"
+                class="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Minimizar al altavoz de la pulsera"
+              >
+                <Watch class="w-3.5 h-3.5 text-teal-300" />
+                <span class="hidden sm:inline">Minimizar a Pulsera</span>
+              </button>
+
+              <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-mono font-bold text-teal-200">
+                <span class="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+                <span>{{ voiceCall.callDurationFormatted.value }}</span>
+              </div>
             </div>
           </div>
 

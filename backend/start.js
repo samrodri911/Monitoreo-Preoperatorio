@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,6 +7,29 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 
 const isWin = process.platform === 'win32';
+
+// Liberar puerto 8000 si un proceso anterior quedó colgado en segundo plano
+function liberarPuerto8000() {
+  try {
+    if (isWin) {
+      const output = execSync('netstat -ano | findstr :8000', { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+      const lines = output.trim().split('\n');
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        const pid = parts[parts.length - 1];
+        if (pid && pid !== '0' && !isNaN(Number(pid))) {
+          try { execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' }); } catch {}
+        }
+      }
+    } else {
+      execSync('lsof -ti :8000 | xargs kill -9 2>/dev/null', { stdio: 'ignore' });
+    }
+  } catch {
+    // Si no había ningún proceso escuchando en el puerto 8000, continúa normalmente
+  }
+}
+
+liberarPuerto8000();
 
 // Búsqueda inteligente del ejecutable de python con prioridad a entornos virtuales
 const candidatePaths = [
