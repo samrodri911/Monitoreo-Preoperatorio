@@ -1,4 +1,4 @@
-# 🏥 Ecosistema Phygital Inclusivo "Tech-and-Touch" (Preparación Prequirúrgica)
+# 🏥 PreCare — Ecosistema Phygital Inclusivo (Preparación Prequirúrgica)
 
 [![Vue 3](https://img.shields.io/badge/Vue-3.5-4fc08d?style=flat-square&logo=vue.js)](https://vuejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646cff?style=flat-square&logo=vite)](https://vitejs.dev/)
@@ -163,7 +163,7 @@ Guarda el archivo y reinicia el servidor (`npm run dev`). La aplicación detecta
 ### Prueba 1: Semáforo y Check-ins en Tiempo Real
 1. Abre dos ventanas de navegador lado a lado:
    - **Ventana 1:** `http://localhost:5173/clinica` (Tablero Hospitalario).
-   - **Ventana 2:** `http://localhost:5173/paciente` (Selecciona a la paciente **Elena Restrepo**, en 🔴 **Riesgo Crítico**).
+   - **Ventana 2:** `http://localhost:5173/paciente` (Selecciona a la paciente **Luisa Castro**, en 🔴 **Riesgo Crítico**).
 2. En la ventana del paciente, ve a la pestaña **"Mi Preparación Activa"** y haz clic en **"Marcar como Cumplido"** en la pauta de *Ayuno Estricto de Sólidos*.
 3. **Observa la clínica (`/clinica`):** El semáforo cambiará en vivo a 🟢 **Verde (Preparado)**.
 

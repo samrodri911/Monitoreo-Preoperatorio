@@ -1,5 +1,5 @@
 -- ==============================================================================
--- ECOSISTEMA PREOPERATORIO "TECH-AND-TOUCH" (FASE 1: MVP BASE)
+-- ECOSISTEMA PREOPERATORIO "PRECARE" (FASE 1: MVP BASE)
 -- MÓDULO EDUCATIVO PREOPERATORIO ENRIQUECIDO (RD1 & AISLAMIENTO DE ROLES)
 -- Script de actualización: update_materiales_educativos.sql
 -- ==============================================================================
@@ -56,7 +56,7 @@ BEGIN
     SELECT id INTO v_cirugia_elena_id FROM cirugias WHERE tipo_cirugia = 'Artroplastia Total de Cadera' LIMIT 1;
 
     -- --------------------------------------------------------------------------
-    -- MATERIALES ENRIQUECIDOS: COLECISTECTOMÍA LAPAROSCÓPICA (Caso Carlos Mendoza)
+    -- MATERIALES ENRIQUECIDOS: COLECISTECTOMÍA LAPAROSCÓPICA (Caso Gerardo Andrés Martínez)
     -- --------------------------------------------------------------------------
     
     -- VIDEO DIDÁCTICO
@@ -201,7 +201,7 @@ Tras la cirugía:
     );
 
     -- --------------------------------------------------------------------------
-    -- MATERIALES ENRIQUECIDOS: ARTROPLASTIA DE CADERA (Caso Elena Restrepo)
+    -- MATERIALES ENRIQUECIDOS: ARTROPLASTIA DE CADERA (Caso Luisa Castro)
     -- --------------------------------------------------------------------------
     INSERT INTO materiales_educativos (
         cirugia_id, tipo_cirugia, categoria, tipo_recurso, titulo, descripcion_corta, 

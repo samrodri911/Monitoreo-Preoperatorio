@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { usePacienteStore } from '../../stores/pacienteStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useChatStore } from '../../stores/chat';
 import { useVoiceCall } from '../../composables/useVoiceCall';
+import { useAnxietyMonitoring } from '../../composables/useAnxietyMonitoring';
 import {
   Activity,
   User,
@@ -18,6 +19,7 @@ import {
   LogOut,
   Stethoscope,
   ArrowLeft,
+  AlertOctagon,
 } from 'lucide-vue-next';
 
 const route = useRoute();
@@ -26,7 +28,7 @@ const pacienteStore = usePacienteStore();
 const authStore = useAuthStore();
 const chatStore = useChatStore();
 const voiceCall = useVoiceCall();
-const showHelpModal = ref(false);
+const anxiety = useAnxietyMonitoring();
 
 const isLoginRoute = computed(() => route.path === '/login');
 const isPacienteRoute = computed(() => route.path.startsWith('/paciente'));
@@ -35,6 +37,8 @@ function handleLogout() {
   if (voiceCall.isCallModalOpen.value) {
     voiceCall.endCall();
   }
+  anxiety.closeHelpDirectory();
+  anxiety.closeSurveyModal();
   chatStore.clearChat();
   authStore.logout();
   router.push('/login');
@@ -54,7 +58,7 @@ function handleLogout() {
             <HeartHandshake class="w-6 h-6" />
           </div>
           <div>
-            <span class="text-lg font-bold text-slate-900 tracking-tight block leading-tight">Tech-and-Touch</span>
+            <span class="text-lg font-bold text-slate-900 tracking-tight block leading-tight">PreCare</span>
             <span class="text-xs font-semibold text-teal-700 block">
               {{ authStore.isMedico ? 'Vista Previa del Paciente (Modo Médico)' : 'Portal de Acompañamiento del Paciente' }}
             </span>
@@ -103,7 +107,7 @@ function handleLogout() {
           <!-- Botón de Ayuda & Contacto 24/7 -->
           <button
             type="button"
-            @click="showHelpModal = true"
+            @click="anxiety.openHelpDirectory()"
             class="px-2.5 py-2 sm:px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all focus-ring cursor-pointer"
             title="Directorio de líneas de atención"
           >
@@ -135,7 +139,7 @@ function handleLogout() {
             <HeartHandshake class="w-6 h-6" />
           </div>
           <div>
-            <span class="text-lg font-bold text-slate-900 tracking-tight block leading-tight">Tech-and-Touch</span>
+            <span class="text-lg font-bold text-slate-900 tracking-tight block leading-tight">PreCare</span>
             <span class="text-xs font-medium text-teal-700 block">Coordinación Quirúrgica Hospitalaria</span>
           </div>
         </router-link>
@@ -224,37 +228,70 @@ function handleLogout() {
     </div>
   </header>
 
-  <!-- MODAL EMPÁTICO DE AYUDA Y ASISTENCIA 24/7 -->
+  <!-- MODAL EMPÁTICO DE AYUDA Y ASISTENCIA 24/7 (GLOBAL - TAMBIÉN DISPARABLE POR IA SOFI) -->
   <div
-    v-if="showHelpModal"
-    class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
-    @click.self="showHelpModal = false"
+    v-if="anxiety.isHelpDirectoryOpen.value"
+    role="dialog"
+    aria-modal="true"
+    class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+    @click.self="anxiety.closeHelpDirectory()"
   >
-    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200 my-auto border-2"
+      :class="anxiety.helpDirectoryContext.value?.urgente ? 'border-rose-400' : 'border-teal-100'"
+    >
       
       <!-- Cabecera del Modal -->
       <div class="flex items-start justify-between border-b border-slate-100 pb-4">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center flex-shrink-0">
-            <PhoneCall class="w-6 h-6" />
+          <div
+            class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            :class="anxiety.helpDirectoryContext.value?.urgente ? 'bg-rose-100 text-rose-700 animate-pulse' : 'bg-teal-100 text-teal-700'"
+          >
+            <AlertOctagon v-if="anxiety.helpDirectoryContext.value?.urgente" class="w-6 h-6" />
+            <PhoneCall v-else class="w-6 h-6" />
           </div>
           <div>
-            <span class="text-xs font-bold uppercase tracking-wider text-teal-700 block">Líneas Directas Prequirúrgicas</span>
-            <h3 class="text-xl font-bold text-slate-900">¿Tienes dudas o necesitas ayuda?</h3>
+            <span
+              class="text-xs font-bold uppercase tracking-wider block"
+              :class="anxiety.helpDirectoryContext.value?.urgente ? 'text-rose-700' : 'text-teal-700'"
+            >
+              {{ anxiety.helpDirectoryContext.value?.urgente ? 'PreCare • Directorio de Apoyo Inmediato' : 'PreCare • Líneas Directas Prequirúrgicas' }}
+            </span>
+            <h3 class="text-xl font-bold text-slate-900">
+              {{ anxiety.helpDirectoryContext.value?.urgente ? 'No estás solo, estamos aquí contigo' : '¿Tienes dudas o necesitas ayuda?' }}
+            </h3>
           </div>
         </div>
 
         <button
-          @click="showHelpModal = false"
-          class="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-ring"
+          type="button"
+          @click="anxiety.closeHelpDirectory()"
+          class="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors focus-ring cursor-pointer"
         >
           <X class="w-5 h-5" />
         </button>
       </div>
 
+      <!-- Banner de Contención Automática cuando Sofi detectó ansiedad / miedo / deseo de cancelar -->
+      <div
+        v-if="anxiety.helpDirectoryContext.value?.urgente"
+        class="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-1.5"
+      >
+        <p class="text-xs font-extrabold uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
+          <ShieldAlert class="w-4 h-4 text-rose-600 shrink-0" />
+          <span>Activación Automática por Detección Emocional</span>
+        </p>
+        <p class="text-sm text-rose-950 leading-snug">
+          {{ anxiety.helpDirectoryContext.value.motivo }}
+        </p>
+        <p v-if="anxiety.helpDirectoryContext.value.alertaEnviadaMedico" class="text-xs font-bold text-rose-700 pt-1">
+          ✓ Ya enviamos una notificación prioritaria a tu equipo médico en PreCare para acompañarte.
+        </p>
+      </div>
+
       <!-- Mensaje Tranquilizador -->
       <p class="text-sm text-slate-600 leading-relaxed">
-        Nuestro equipo de enfermería y cirujanos está disponible las 24 horas para escucharte, resolver dudas sobre tu ayuno o medicamentos y brindarte total tranquilidad.
+        Nuestro equipo de enfermería, psicología prequirúrgica y cirujanos está disponible las 24 horas para escucharte, resolver dudas y brindarte total tranquilidad antes de tu procedimiento.
       </p>
 
       <!-- Directorio de Contacto Inmediato -->
@@ -265,42 +302,60 @@ function handleLogout() {
           class="flex items-center justify-between p-4 rounded-2xl bg-teal-50 border border-teal-200 hover:bg-teal-100/80 transition-colors group"
         >
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center">
+            <div class="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0">
               <Phone class="w-5 h-5" />
             </div>
             <div>
               <span class="font-bold text-slate-900 block text-base group-hover:text-teal-900">Enfermería de Turno 24/7</span>
-              <span class="text-xs text-teal-700 font-medium">Asistencia sobre pautas y ayuno</span>
+              <span class="text-xs text-teal-700 font-medium">Acompañamiento inmediato, pautas y ayuno</span>
             </div>
           </div>
-          <span class="text-sm font-mono font-bold text-teal-800">+57 300 999 8877</span>
+          <span class="text-sm font-mono font-bold text-teal-800 shrink-0">+57 300 999 8877</span>
         </a>
 
-        <!-- Urgencias Quirúrgicas -->
+        <!-- Línea de Apoyo Emocional / Psicología Prequirúrgica -->
+        <a
+          href="tel:+573107776655"
+          class="flex items-center justify-between p-4 rounded-2xl bg-rose-50/70 border border-rose-200 hover:bg-rose-100/80 transition-colors group"
+        >
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0">
+              <HeartHandshake class="w-5 h-5" />
+            </div>
+            <div>
+              <span class="font-bold text-slate-900 block text-base group-hover:text-rose-900">Apoyo Emocional Prequirúrgico</span>
+              <span class="text-xs text-rose-700 font-medium">Manejo de miedo, ansiedad o dudas sobre operarte</span>
+            </div>
+          </div>
+          <span class="text-sm font-mono font-bold text-rose-800 shrink-0">+57 310 777 6655</span>
+        </a>
+
+        <!-- Coordinación Quirúrgica -->
         <a
           href="tel:+573158889900"
           class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors group"
         >
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center">
+            <div class="w-10 h-10 rounded-xl bg-slate-800 text-white flex items-center justify-center shrink-0">
               <ShieldAlert class="w-5 h-5" />
             </div>
             <div>
               <span class="font-bold text-slate-900 block text-base">Coordinación Quirúrgica</span>
-              <span class="text-xs text-slate-500">Cambios de fecha o síntomas repentinos</span>
+              <span class="text-xs text-slate-500">Cambios de fecha, cancelaciones o síntomas</span>
             </div>
           </div>
-          <span class="text-sm font-mono font-bold text-slate-800">+57 315 888 9900</span>
+          <span class="text-sm font-mono font-bold text-slate-800 shrink-0">+57 315 888 9900</span>
         </a>
       </div>
 
       <!-- Pie del Modal -->
       <div class="pt-2 border-t border-slate-100 text-center">
         <button
-          @click="showHelpModal = false"
-          class="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors focus-ring"
+          type="button"
+          @click="anxiety.closeHelpDirectory()"
+          class="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors focus-ring cursor-pointer"
         >
-          Cerrar Ventana de Ayuda
+          Cerrar Directorio de Ayuda
         </button>
       </div>
 

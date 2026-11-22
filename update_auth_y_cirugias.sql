@@ -1,6 +1,6 @@
 -- =====================================================================================
 -- MIGRACIÓN: AUTENTICACIÓN DUAL, CATÁLOGO REUTILIZABLE DE CIRUGÍAS Y PERFIL ESPECÍFICO
--- Proyecto: Tech-and-Touch (Ecosistema Phygital Prequirúrgico)
+-- Proyecto: PreCare (Ecosistema Phygital Prequirúrgico)
 -- =====================================================================================
 
 -- 1. CREAR TABLA DE CATÁLOGO GENERAL DE CIRUGÍAS (PROTOCOLOS BASE REUTILIZABLES)

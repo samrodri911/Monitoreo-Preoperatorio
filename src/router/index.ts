@@ -24,7 +24,7 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       meta: {
-        title: 'Iniciar Sesión — Tech-and-Touch',
+        title: 'Iniciar Sesión — PreCare',
       },
     },
     {
@@ -32,7 +32,7 @@ const router = createRouter({
       name: 'paciente',
       component: PacienteView,
       meta: {
-        title: 'Mi Preparación Quirúrgica — Tech-and-Touch',
+        title: 'Mi Preparación Quirúrgica — PreCare',
         requiresAuth: true,
         allowedRoles: ['paciente', 'medico'],
       },
@@ -42,7 +42,7 @@ const router = createRouter({
       name: 'clinica',
       component: ClinicaView,
       meta: {
-        title: 'Tablero Clínico Semáforo — Tech-and-Touch',
+        title: 'Tablero Clínico Semáforo — PreCare',
         requiresAuth: true,
         allowedRoles: ['medico'],
       },
@@ -52,7 +52,7 @@ const router = createRouter({
       name: 'hub',
       component: HubView,
       meta: {
-        title: 'Tech-and-Touch | Arquitectura del Ecosistema',
+        title: 'PreCare | Arquitectura del Ecosistema',
       },
     },
   ],

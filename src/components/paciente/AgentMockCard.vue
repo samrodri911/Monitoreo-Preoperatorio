@@ -29,7 +29,7 @@ function openChat() {
         </div>
         <div>
           <span class="text-xs font-bold uppercase tracking-wider text-teal-800 block">Asistente Virtual Phygital</span>
-          <span class="text-base font-bold text-slate-900">Acompañante de Voz & Contención "Tech-and-Touch"</span>
+          <span class="text-base font-bold text-slate-900">Acompañante de Voz & Contención "PreCare"</span>
         </div>
       </div>
 

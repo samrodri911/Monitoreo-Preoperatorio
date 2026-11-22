@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import { aiAssistantService, type ChatMessage } from '../services/aiAssistant';
 import { usePacienteStore } from './pacienteStore';
+import { useAnxietyMonitoring } from '../composables/useAnxietyMonitoring';
 
 export interface ChatMessageItem {
   id: string;
@@ -36,7 +37,7 @@ export const useChatStore = defineStore('chat', () => {
     return {
       id: 'welcome-msg',
       role: 'assistant',
-      content: `¡Hola ${nombre}! 👋 Soy **Sofi**, tu acompañante clínica preoperatoria del programa *Tech-and-Touch*.\n\nEstoy aquí para resolver tus dudas sobre tu **${cirugiaNombre}**, explicarte las horas de ayuno, la medicación autorizada o ayudarte a preparar tu maleta hospitalaria.\n\n*Recuerda que soy una guía informativa y no reemplazo las indicaciones directas de tu cirujano o anestesiólogo.* ¿Qué te gustaría consultar hoy?`,
+      content: `¡Hola ${nombre}! 👋 Soy **Sofi**, tu acompañante clínica preoperatoria del programa *PreCare*.\n\nEstoy aquí para resolver tus dudas sobre tu **${cirugiaNombre}**, explicarte las horas de ayuno, la medicación autorizada o ayudarte a preparar tu maleta hospitalaria.\n\n*Recuerda que soy una guía informativa y no reemplazo las indicaciones directas de tu cirujano o anestesiólogo.* ¿Qué te gustaría consultar hoy?`,
       timestamp: new Date(),
     };
   }
@@ -122,6 +123,26 @@ export const useChatStore = defineStore('chat', () => {
       timestamp: new Date(),
     };
     messages.value.push(userMsg);
+
+    // 1.5 Evaluar ansiedad / palabras clave críticas y marcar contacto con IA
+    const anxiety = useAnxietyMonitoring();
+    const analisisAnsiedad = await anxiety.evaluarYReportarInteraccionIA({
+      texto: text,
+      origen: 'chat_ia',
+      paciente: pacienteStore.paciente,
+      cirugia: pacienteStore.cirugia,
+    });
+
+    if (analisisAnsiedad.abrirDirectorioAyuda) {
+      const nombrePac = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Paciente';
+      messages.value.push({
+        id: `asst-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        role: 'assistant',
+        content: `Te escucho con mucha atención, **${nombrePac}**. Es completamente válido sentir miedo o dudas antes de una cirugía, y no tienes que atravesar esto solo.\n\n📞 **Acabo de abrir el Directorio de Ayuda en tu pantalla** con líneas directas a Enfermería 24/7 y Apoyo Emocional.\n🚨 También **envié un aviso prioritario a tu médico** en PreCare para acompañarte de inmediato. ¿Quieres contarme qué es lo que más te preocupa en este momento?`,
+        timestamp: new Date(),
+      });
+      return;
+    }
 
     // 2. Preparar burbuja temporal reactiva para el asistente
     const assistantMsg: ChatMessageItem = {

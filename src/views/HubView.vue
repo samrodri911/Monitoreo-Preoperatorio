@@ -29,7 +29,7 @@ async function navegarAPaciente(pacienteId: string) {
         </div>
 
         <h1 class="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-          Ecosistema Phygital Inclusivo <span class="text-teal-600">"Tech-and-Touch"</span>
+          Ecosistema Phygital Inclusivo <span class="text-teal-600">"PreCare"</span>
         </h1>
 
         <p class="text-base sm:text-lg text-slate-600 leading-relaxed">
@@ -68,7 +68,7 @@ async function navegarAPaciente(pacienteId: string) {
       <!-- Selector de Experiencias / Vistas Clave -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <!-- Tarjeta 1: Caso A (Carlos Mendoza - 48h - Verde) -->
+        <!-- Tarjeta 1: Caso A (Gerardo Andrés Martínez - 48h - Verde) -->
         <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
           <div class="space-y-3">
             <div class="flex items-center justify-between">
@@ -79,7 +79,7 @@ async function navegarAPaciente(pacienteId: string) {
               <span class="text-xs font-bold text-slate-400">-48 Horas</span>
             </div>
 
-            <h3 class="text-xl font-bold text-slate-900">Carlos Alberto Mendoza</h3>
+            <h3 class="text-xl font-bold text-slate-900">Gerardo Andrés Martínez</h3>
             <p class="text-xs text-slate-500">Apendicectomía Laparoscópica</p>
 
             <p class="text-sm text-slate-600 leading-relaxed">
@@ -97,7 +97,7 @@ async function navegarAPaciente(pacienteId: string) {
           </button>
         </div>
 
-        <!-- Tarjeta 2: Caso B (Elena Restrepo - 6h - Rojo) -->
+        <!-- Tarjeta 2: Caso B (Luisa Castro - 6h - Rojo) -->
         <div class="bg-white rounded-3xl border border-rose-200 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
           <div class="space-y-3">
             <div class="flex items-center justify-between">
@@ -108,7 +108,7 @@ async function navegarAPaciente(pacienteId: string) {
               <span class="text-xs font-bold text-rose-600">-6 Horas</span>
             </div>
 
-            <h3 class="text-xl font-bold text-slate-900">Elena María Restrepo</h3>
+            <h3 class="text-xl font-bold text-slate-900">Luisa Castro</h3>
             <p class="text-xs text-slate-500">Artroplastia Total de Cadera</p>
 
             <p class="text-sm text-slate-600 leading-relaxed">
@@ -166,9 +166,9 @@ async function navegarAPaciente(pacienteId: string) {
         </div>
         <ol class="text-sm text-slate-600 space-y-2 pl-6 list-decimal leading-relaxed">
           <li>Abre una ventana de navegador en <code class="px-1.5 py-0.5 rounded bg-slate-100 text-teal-800 font-mono font-bold">/clinica</code>.</li>
-          <li>Abre otra ventana al lado en <code class="px-1.5 py-0.5 rounded bg-slate-100 text-teal-800 font-mono font-bold">/paciente</code> seleccionando a <strong>Elena Restrepo</strong>.</li>
-          <li>En la vista de Elena, haz clic en <strong>"Marcar como Cumplido"</strong> en la pauta de <em>Ayuno Estricto de Sólidos</em>.</li>
-          <li>¡Observa la ventana de <code class="px-1.5 py-0.5 bg-slate-100 rounded text-teal-800 font-mono font-bold">/clinica</code>! El semáforo de Elena cambiará automáticamente de 🔴 Rojo a 🟢 Verde sin recargar la página.</li>
+          <li>Abre otra ventana al lado en <code class="px-1.5 py-0.5 rounded bg-slate-100 text-teal-800 font-mono font-bold">/paciente</code> seleccionando a <strong>Luisa Castro</strong>.</li>
+          <li>En la vista de Luisa, haz clic en <strong>"Marcar como Cumplido"</strong> en la pauta de <em>Ayuno Estricto de Sólidos</em>.</li>
+          <li>¡Observa la ventana de <code class="px-1.5 py-0.5 bg-slate-100 rounded text-teal-800 font-mono font-bold">/clinica</code>! El semáforo de Luisa cambiará automáticamente de 🔴 Rojo a 🟢 Verde sin recargar la página.</li>
         </ol>
       </div>
 

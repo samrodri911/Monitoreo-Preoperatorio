@@ -292,6 +292,32 @@ export const usePacienteStore = defineStore('paciente', () => {
     }
   }
 
+  // Desmarcar check-in para que vuelva a estar pendiente (usado para pautas continuas de ayuno antes de sonar la próxima alarma)
+  async function desmarcarCheckin(pautaId: string) {
+    const targetPauta = pautas.value.find(p => p.id === pautaId);
+    if (!targetPauta) return;
+    if (targetPauta.checkin?.estado === 'completado') {
+      await toggleCheckin(pautaId);
+    }
+  }
+
+  // Confirmar temporalmente el ciclo actual de una pauta continua (ayuno)
+  async function confirmarCheckinRecurrente(pautaId: string, observacion?: string) {
+    const targetPauta = pautas.value.find(p => p.id === pautaId);
+    if (!targetPauta) return;
+    const ahoraIso = new Date().toISOString();
+    const obs = observacion || `Ayuno verificado a las ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} (vigilancia horaria activa)`;
+
+    if (targetPauta.checkin?.estado !== 'completado') {
+      await toggleCheckin(pautaId);
+    }
+    if (targetPauta.checkin) {
+      targetPauta.checkin.observaciones = obs;
+      targetPauta.checkin.fecha_respuesta = ahoraIso;
+      mockRealtimeBus.emit('checkins', 'UPDATE', targetPauta.checkin);
+    }
+  }
+
   // Inicializar suscripción en tiempo real
   function iniciarSuscripcionRealtime() {
     if (isSupabaseConfigured && supabase) {
@@ -336,6 +362,8 @@ export const usePacienteStore = defineStore('paciente', () => {
     cargarDatosPaciente,
     toggleCheckin,
     completarCheckin,
+    desmarcarCheckin,
+    confirmarCheckinRecurrente,
     iniciarSuscripcionRealtime,
   };
 });

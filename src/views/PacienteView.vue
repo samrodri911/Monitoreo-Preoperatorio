@@ -13,13 +13,17 @@ import FaqAccordion from '../components/paciente/FaqAccordion.vue';
 import ChatAssistant from '../components/paciente/ChatAssistant.vue';
 import VoiceCallModal from '../components/paciente/VoiceCallModal.vue';
 import SmartWristbandSimulator from '../components/paciente/SmartWristbandSimulator.vue';
-import { Loader2, Stethoscope, Sparkles, Watch } from 'lucide-vue-next';
+import AnxietySurveyModal from '../components/paciente/AnxietySurveyModal.vue';
+import { useAnxietyMonitoring } from '../composables/useAnxietyMonitoring';
+import { Loader2, Stethoscope, Sparkles, Watch, HeartHandshake } from 'lucide-vue-next';
 
 const pacienteStore = usePacienteStore();
 const authStore = useAuthStore();
+const anxiety = useAnxietyMonitoring();
 const activeTab = ref<'preparacion' | 'educacion'>('educacion'); // Abre en la pestaña de educación preoperatoria por defecto
 const isWristbandSimulatorOpen = ref(false);
 let unsubRealtime: (() => void) | null = null;
+let stopSurveyWatcher: (() => void) | null = null;
 
 onMounted(async () => {
   if (authStore.isPaciente && authStore.pacienteId) {
@@ -30,11 +34,21 @@ onMounted(async () => {
     await pacienteStore.cargarDatosPaciente();
   }
   unsubRealtime = pacienteStore.iniciarSuscripcionRealtime();
+  stopSurveyWatcher = anxiety.startSurveyInactivityWatcher(
+    () => pacienteStore.paciente,
+    () => pacienteStore.cirugia
+  );
 });
 
 onUnmounted(() => {
   if (unsubRealtime) unsubRealtime();
+  if (stopSurveyWatcher) stopSurveyWatcher();
 });
+
+function activarSimulacionEncuestaWeb() {
+  // Simulación EXCLUSIVA del Portal Web: solo abre la encuesta en pantalla web (desconectada de la pulsera)
+  anxiety.simularEncuestaWeb(pacienteStore.paciente, pacienteStore.cirugia);
+}
 
 // Recursos educativos clasificados
 const videoRecurso = computed(() => {
@@ -76,17 +90,29 @@ const materialesFaq = computed(() => {
               Pulsera Inteligente de Mínima Fricción (Sin Pantalla • Audio + LED + Botón Único)
             </span>
           </div>
-          <button
-            type="button"
-            :aria-expanded="isWristbandSimulatorOpen"
-            @click="isWristbandSimulatorOpen = !isWristbandSimulatorOpen"
-            class="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <Watch class="w-3.5 h-3.5" />
-            <span>
-              {{ isWristbandSimulatorOpen ? 'Minimizar Pulsera Phygital' : 'Probar Simulador Pulsera Phygital' }}
-            </span>
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              @click="activarSimulacionEncuestaWeb"
+              class="px-3.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Simula la encuesta rápida de ansiedad únicamente en pantalla web (sin activar la pulsera)"
+            >
+              <HeartHandshake class="w-3.5 h-3.5" />
+              <span>Simular Encuesta Web (50%)</span>
+            </button>
+
+            <button
+              type="button"
+              :aria-expanded="isWristbandSimulatorOpen"
+              @click="isWristbandSimulatorOpen = !isWristbandSimulatorOpen"
+              class="px-3.5 py-1.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Watch class="w-3.5 h-3.5" />
+              <span>
+                {{ isWristbandSimulatorOpen ? 'Minimizar Pulsera PreCare' : 'Probar Simulador Pulsera PreCare' }}
+              </span>
+            </button>
+          </div>
         </div>
 
         <!-- 1. FICHA DE PRESENTACIÓN EMPÁTICA Y HERO CON CUENTA REGRESIVA E INDICADORES (RD1) -->
@@ -220,6 +246,9 @@ const materialesFaq = computed(() => {
 
     <!-- Asistente Virtual Prequirúrgico Local (Ollama) -->
     <ChatAssistant />
+
+    <!-- Encuesta Rápida y Poco Invasiva de Ansiedad (Activación 50% tiempo sin contacto IA o Simulación) -->
+    <AnxietySurveyModal />
 
     <!-- Modal de Llamada 100% de Voz (Cero Texto / RD4 Rescate Asistencial) -->
     <VoiceCallModal />

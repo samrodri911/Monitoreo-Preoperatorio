@@ -100,6 +100,7 @@ export interface Pauta {
   hora_alarma?: string | null; // Formato "HH:mm" para medicamentos u horas exactas (ej. "06:00")
   intervalo_minutos?: number | null; // Ej. 60 (cada hora) para ayuno, ducha o preparación continua
   alarma_activa?: boolean;
+  es_vigilancia_continua?: boolean; // True si es ayuno u otra condición continua que no se finaliza con un solo check
   created_at: string;
 }
 
@@ -110,6 +111,28 @@ export interface Checkin {
   fecha_respuesta: string | null;
   observaciones: string | null;
   updated_at: string;
+}
+
+export type OrigenReporteAnsiedad = 'llamada_ia' | 'chat_ia' | 'encuesta_rapida' | 'encuesta_pulsera';
+
+export interface ReporteAnsiedad {
+  id: string;
+  paciente_id: string;
+  paciente_nombre: string;
+  cirugia_id?: string | null;
+  tipo_cirugia?: string | null;
+  origen: OrigenReporteAnsiedad;
+  nivel: NivelAnsiedad;
+  riesgo_cancelacion: boolean;
+  es_urgente: boolean;
+  puntaje: number; // 1 (muy tranquilo) a 10 (pánico / deseo de cancelar)
+  estado_animo: string;
+  preocupacion_principal?: string | null;
+  frase_detectada?: string | null;
+  palabras_clave?: string[];
+  comentario_paciente?: string | null;
+  revisado_medico: boolean;
+  created_at: string;
 }
 
 export interface Alerta {
@@ -153,6 +176,8 @@ export interface CirugiaConDetalle extends Cirugia {
   paciente: Paciente;
   pautas: PautaConCheckin[];
   alertas: Alerta[];
+  reportesAnsiedad?: ReporteAnsiedad[];
+  ultimoReporteAnsiedad?: ReporteAnsiedad | null;
   semaforo: AlertaNivel;
   pautasCriticasPendientes: number;
 }

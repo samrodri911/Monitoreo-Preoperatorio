@@ -17,6 +17,15 @@ export const MOCK_CIRUGIA_A_ID = '22222222-2222-4222-a222-222222222222';
 export const MOCK_PACIENTE_B_ID = '33333333-3333-4333-b333-333333333333';
 export const MOCK_CIRUGIA_B_ID = '44444444-4444-4444-b444-444444444444';
 
+export const MOCK_PACIENTE_C_ID = '55555555-5555-4555-c555-555555555555';
+export const MOCK_CIRUGIA_C_ID = '66666666-6666-4666-c666-666666666666';
+
+export const MOCK_PACIENTE_D_ID = '77777777-7777-4777-d777-777777777777';
+export const MOCK_CIRUGIA_D_ID = '88888888-8888-4888-d888-888888888888';
+
+export const MOCK_PACIENTE_E_ID = '99999999-9999-4999-e999-999999999999';
+export const MOCK_CIRUGIA_E_ID = 'aaaaaaaa-aaaa-4aaa-eaaa-aaaaaaaaaaaa';
+
 export const CATALOGO_APENDICE_ID = 'cat-apendicectomia-lap';
 export const CATALOGO_CADERA_ID = 'cat-artroplastia-cadera';
 export const CATALOGO_COLECISTECTOMIA_ID = 'cat-colecistectomia-lap';
@@ -26,6 +35,9 @@ export const CATALOGO_HERNIA_ID = 'cat-herniorrafia-inguinal';
 const now = new Date();
 const in48Hours = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
 const in6Hours = new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
+const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+const in72Hours = new Date(now.getTime() + 72 * 60 * 60 * 1000).toISOString();
+const in36Hours = new Date(now.getTime() + 36 * 60 * 60 * 1000).toISOString();
 
 export const initialCatalogoCirugias: CatalogoCirugia[] = [
   {
@@ -240,12 +252,12 @@ export const initialMockPersonalClinico: (PersonalClinico & { password_Demo: str
 export const initialMockPacientes: Paciente[] = [
   {
     id: MOCK_PACIENTE_A_ID,
-    nombre_completo: 'Carlos Alberto Mendoza',
+    nombre_completo: 'Gerardo Andrés Martínez',
     documento: '1020304050',
     telefono: '+57 300 123 4567',
     edad: 58,
-    contacto_emergencia: 'Marta Mendoza (Hija) - 301 987 6543',
-    email: 'carlos.mendoza@ejemplo.com',
+    contacto_emergencia: 'Camila Martínez (Hija) - 301 987 6543',
+    email: 'gerardo.martinez@ejemplo.com',
     pin_acceso: '1234',
     grupo_sanguineo: 'O+',
     peso_kg: 78,
@@ -258,12 +270,12 @@ export const initialMockPacientes: Paciente[] = [
   },
   {
     id: MOCK_PACIENTE_B_ID,
-    nombre_completo: 'Elena María Restrepo',
+    nombre_completo: 'Luisa Castro',
     documento: '9876543210',
     telefono: '+57 312 456 7890',
     edad: 67,
-    contacto_emergencia: 'Andrés Gómez (Esposo) - 315 222 3344',
-    email: 'elena.restrepo@ejemplo.com',
+    contacto_emergencia: 'Alonso Rodríguez (Esposo) - 315 222 3344',
+    email: 'luisa.castro@ejemplo.com',
     pin_acceso: '5678',
     grupo_sanguineo: 'A+',
     peso_kg: 65,
@@ -273,7 +285,61 @@ export const initialMockPacientes: Paciente[] = [
     medicacion_habitual: 'Amlodipino 5mg diario, Acetaminofén condicional',
     nivel_ansiedad: 'alta',
     created_at: now.toISOString(),
-  }
+  },
+  {
+    id: MOCK_PACIENTE_C_ID,
+    nombre_completo: 'Samuel Ramírez',
+    documento: '1030405060',
+    telefono: '+57 310 987 6543',
+    edad: 54,
+    contacto_emergencia: 'Carolina Ramírez (Esposa) - 312 876 5432',
+    email: 'samuel.ramirez@ejemplo.com',
+    pin_acceso: '2468',
+    grupo_sanguineo: 'O+',
+    peso_kg: 76,
+    talla_cm: 170,
+    alergias: 'Ninguna conocida',
+    comorbilidades: ['Dislipidemia', 'Gastritis leve'],
+    medicacion_habitual: 'Atorvastatina 20mg noche',
+    nivel_ansiedad: 'moderada',
+    created_at: now.toISOString(),
+  },
+  {
+    id: MOCK_PACIENTE_D_ID,
+    nombre_completo: 'Alonso Rodríguez',
+    documento: '1040506070',
+    telefono: '+57 314 333 4455',
+    edad: 62,
+    contacto_emergencia: 'Paola Rodríguez (Hija) - 320 123 4567',
+    email: 'alonso.rodriguez@ejemplo.com',
+    pin_acceso: '1357',
+    grupo_sanguineo: 'B+',
+    peso_kg: 81,
+    talla_cm: 175,
+    alergias: 'Ninguna conocida',
+    comorbilidades: ['Hipertensión Arterial'],
+    medicacion_habitual: 'Enalapril 10mg diario',
+    nivel_ansiedad: 'baja',
+    created_at: now.toISOString(),
+  },
+  {
+    id: MOCK_PACIENTE_E_ID,
+    nombre_completo: 'Luis Solarte',
+    documento: '1050607080',
+    telefono: '+57 318 444 3322',
+    edad: 49,
+    contacto_emergencia: 'Diana Solarte (Hermana) - 317 654 3210',
+    email: 'luis.solarte@ejemplo.com',
+    pin_acceso: '9012',
+    grupo_sanguineo: 'A+',
+    peso_kg: 72,
+    talla_cm: 168,
+    alergias: 'Ninguna conocida',
+    comorbilidades: [],
+    medicacion_habitual: 'Ninguna',
+    nivel_ansiedad: 'moderada',
+    created_at: now.toISOString(),
+  },
 ];
 
 export const initialMockCirugias: Cirugia[] = [
@@ -316,11 +382,71 @@ export const initialMockCirugias: Cirugia[] = [
     fecha_programada: in6Hours,
     estado: 'en_preparacion',
     created_at: now.toISOString(),
-  }
+  },
+  {
+    id: MOCK_CIRUGIA_C_ID,
+    paciente_id: MOCK_PACIENTE_C_ID,
+    catalogo_cirugia_id: CATALOGO_COLECISTECTOMIA_ID,
+    tipo_cirugia: 'Colecistectomía Laparoscópica',
+    codigo_cirugia: 'CIR-2026-C',
+    medico_tratante: 'Dr. Alejandro Ramírez',
+    notas_medicas: 'Colecistectomía laparoscópica electiva por colelitiasis sintomática. Cumplir ayuno estricto de grasas 24h previas y ayuno general de 8 horas.',
+    nombre_sencillo: 'Extracción de la vesícula biliar por videolaparoscopia',
+    especialidad: 'Cirugía General y Digestiva',
+    duracion_estimada: '60 a 75 minutos',
+    tipo_anestesia: 'Anestesia General Balanceada',
+    sensacion_anestesia: 'Te quedarás profundamente dormido en pocos segundos y despertarás cuando la cirugía haya concluido sin haber sentido dolor.',
+    tiempo_recuperacion: '24 horas de observación hospitalaria o alta ambulatoria',
+    tiempo_recuperacion_sala: '1 a 2 horas en Sala de Recuperación (URPA)',
+    dias_incapacidad_estimados: '8 a 14 días con dieta baja en grasas',
+    fecha_programada: in24Hours,
+    estado: 'en_preparacion',
+    created_at: now.toISOString(),
+  },
+  {
+    id: MOCK_CIRUGIA_D_ID,
+    paciente_id: MOCK_PACIENTE_D_ID,
+    catalogo_cirugia_id: CATALOGO_HERNIA_ID,
+    tipo_cirugia: 'Herniorrafia Inguinal con Malla',
+    codigo_cirugia: 'CIR-2026-D',
+    medico_tratante: 'Dr. Alejandro Ramírez',
+    notas_medicas: 'Reparación de hernia inguinal derecha con colocación de malla de baja densidad. Advertir no rasurar la zona inguinal en casa.',
+    nombre_sencillo: 'Reparación de hernia inguinal con colocación de malla',
+    especialidad: 'Cirugía General',
+    duracion_estimada: '45 a 60 minutos',
+    tipo_anestesia: 'Anestesia Regional o General',
+    sensacion_anestesia: 'Descanso completo y adormecimiento de la región quirúrgica sin dolor ni tensión muscular.',
+    tiempo_recuperacion: '12 a 24 horas ambulatoria',
+    tiempo_recuperacion_sala: '1 hora en URPA',
+    dias_incapacidad_estimados: '10 a 20 días evitando levantar objetos pesados',
+    fecha_programada: in72Hours,
+    estado: 'programada',
+    created_at: now.toISOString(),
+  },
+  {
+    id: MOCK_CIRUGIA_E_ID,
+    paciente_id: MOCK_PACIENTE_E_ID,
+    catalogo_cirugia_id: CATALOGO_APENDICE_ID,
+    tipo_cirugia: 'Apendicectomía Laparoscópica',
+    codigo_cirugia: 'CIR-2026-E',
+    medico_tratante: 'Dra. Sofía Valencia',
+    notas_medicas: 'Procedimiento programado ambulatorio. Preparación física estándar y ayuno de 8 horas sólidos y 2 horas líquidos claros.',
+    nombre_sencillo: 'Cirugía de apéndice por mínima invasión (3 puertos)',
+    especialidad: 'Cirugía General',
+    duracion_estimada: '45 a 60 minutos',
+    tipo_anestesia: 'Anestesia General Balanceada',
+    sensacion_anestesia: 'Sentirás una suave calidez en el brazo y te quedarás plácidamente dormido en segundos sin sentir dolor.',
+    tiempo_recuperacion: '24 a 48 horas ambulatoria',
+    tiempo_recuperacion_sala: '1 a 2 horas en URPA',
+    dias_incapacidad_estimados: '7 a 12 días con reincorporación gradual',
+    fecha_programada: in36Hours,
+    estado: 'programada',
+    created_at: now.toISOString(),
+  },
 ];
 
 export const initialMockPautas: Pauta[] = [
-  // Pautas Carlos Mendoza (Apendicectomía Laparoscópica en 48h)
+  // Pautas Gerardo Andrés Martínez (Apendicectomía Laparoscópica en 48h)
   {
     id: 'pauta-a-1',
     cirugia_id: MOCK_CIRUGIA_A_ID,
@@ -349,6 +475,10 @@ export const initialMockPautas: Pauta[] = [
     horas_previas: 8,
     es_critica: true,
     fecha_limite: new Date(new Date(in48Hours).getTime() - 8 * 3600 * 1000).toISOString(),
+    tipo_alarma: 'recordatorio_periodico',
+    intervalo_minutos: 60,
+    alarma_activa: true,
+    es_vigilancia_continua: true,
     created_at: now.toISOString(),
   },
   {
@@ -359,6 +489,10 @@ export const initialMockPautas: Pauta[] = [
     horas_previas: 2,
     es_critica: true,
     fecha_limite: new Date(new Date(in48Hours).getTime() - 2 * 3600 * 1000).toISOString(),
+    tipo_alarma: 'recordatorio_periodico',
+    intervalo_minutos: 60,
+    alarma_activa: true,
+    es_vigilancia_continua: true,
     created_at: now.toISOString(),
   },
   {
@@ -372,7 +506,7 @@ export const initialMockPautas: Pauta[] = [
     created_at: now.toISOString(),
   },
 
-  // Pautas Elena Restrepo (Cirugía en 6h)
+  // Pautas Luisa Castro (Artroplastia Total de Cadera en 6h)
   {
     id: 'pauta-b-1',
     cirugia_id: MOCK_CIRUGIA_B_ID,
@@ -401,6 +535,10 @@ export const initialMockPautas: Pauta[] = [
     horas_previas: 8,
     es_critica: true,
     fecha_limite: new Date(new Date(in6Hours).getTime() - 8 * 3600 * 1000).toISOString(),
+    tipo_alarma: 'recordatorio_periodico',
+    intervalo_minutos: 60,
+    alarma_activa: true,
+    es_vigilancia_continua: true,
     created_at: now.toISOString(),
   },
   {
@@ -411,6 +549,148 @@ export const initialMockPautas: Pauta[] = [
     horas_previas: 2,
     es_critica: true,
     fecha_limite: new Date(new Date(in6Hours).getTime() - 2 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+
+  // Pautas Samuel Ramírez (Colecistectomía Laparoscópica en 24h)
+  {
+    id: 'pauta-c-1',
+    cirugia_id: MOCK_CIRUGIA_C_ID,
+    titulo: 'Dieta Liviana Libre de Grasas el Día Previo',
+    descripcion: 'Evitar alimentos grasos, fritos, lácteos enteros o salsas 24 horas antes para prevenir cólicos.',
+    horas_previas: 24,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in24Hours).getTime() - 24 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-c-2',
+    cirugia_id: MOCK_CIRUGIA_C_ID,
+    titulo: 'Suspensión de Antiinflamatorios y AINEs',
+    descripcion: 'Suspender ibuprofeno, naproxeno o aspirina para evitar sangrado intraoperatorio.',
+    horas_previas: 24,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in24Hours).getTime() - 24 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-c-3',
+    cirugia_id: MOCK_CIRUGIA_C_ID,
+    titulo: 'Ducha Corporal Antiséptica',
+    descripcion: 'Baño corporal riguroso con jabón quirúrgico, limpiando suavemente ombligo y cuadrante superior derecho.',
+    horas_previas: 12,
+    es_critica: false,
+    fecha_limite: new Date(new Date(in24Hours).getTime() - 12 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-c-4',
+    cirugia_id: MOCK_CIRUGIA_C_ID,
+    titulo: 'Ayuno Absoluto de Sólidos (CRÍTICO)',
+    descripcion: 'Cero comida sólida o lácteos durante las 8 horas previas al procedimiento.',
+    horas_previas: 8,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in24Hours).getTime() - 8 * 3600 * 1000).toISOString(),
+    tipo_alarma: 'recordatorio_periodico',
+    intervalo_minutos: 60,
+    alarma_activa: true,
+    es_vigilancia_continua: true,
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-c-5',
+    cirugia_id: MOCK_CIRUGIA_C_ID,
+    titulo: 'Ayuno de Líquidos Claros (CRÍTICO)',
+    descripcion: 'Suspender agua y aromáticas 2 horas antes de entrar a salas.',
+    horas_previas: 2,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in24Hours).getTime() - 2 * 3600 * 1000).toISOString(),
+    tipo_alarma: 'recordatorio_periodico',
+    intervalo_minutos: 60,
+    alarma_activa: true,
+    es_vigilancia_continua: true,
+    created_at: now.toISOString(),
+  },
+
+  // Pautas Alonso Rodríguez (Herniorrafia Inguinal con Malla en 72h)
+  {
+    id: 'pauta-d-1',
+    cirugia_id: MOCK_CIRUGIA_D_ID,
+    titulo: 'Suspensión de Fármacos Anticoagulantes',
+    descripcion: 'Ajuste de medicamentos según protocolo anestésico previo.',
+    horas_previas: 48,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in72Hours).getTime() - 48 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-d-2',
+    cirugia_id: MOCK_CIRUGIA_D_ID,
+    titulo: 'Prohibición de Rasurado en Casa',
+    descripcion: 'No rasurar la ingle con cuchilla en casa para evitar micro-infecciones en la piel.',
+    horas_previas: 24,
+    es_critica: false,
+    fecha_limite: new Date(new Date(in72Hours).getTime() - 24 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-d-3',
+    cirugia_id: MOCK_CIRUGIA_D_ID,
+    titulo: 'Ducha Antiséptica General',
+    descripcion: 'Baño corporal la noche previa con jabón antiséptico.',
+    horas_previas: 12,
+    es_critica: false,
+    fecha_limite: new Date(new Date(in72Hours).getTime() - 12 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-d-4',
+    cirugia_id: MOCK_CIRUGIA_D_ID,
+    titulo: 'Ayuno Absoluto de Sólidos',
+    descripcion: '8 horas de ayuno completo sin alimentos pesados ni lácteos.',
+    horas_previas: 8,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in72Hours).getTime() - 8 * 3600 * 1000).toISOString(),
+    tipo_alarma: 'recordatorio_periodico',
+    intervalo_minutos: 60,
+    alarma_activa: true,
+    es_vigilancia_continua: true,
+    created_at: now.toISOString(),
+  },
+
+  // Pautas Luis Solarte (Apendicectomía Laparoscópica en 36h)
+  {
+    id: 'pauta-e-1',
+    cirugia_id: MOCK_CIRUGIA_E_ID,
+    titulo: 'Ducha Antiséptica y Limpieza Abdominal',
+    descripcion: 'Baño con énfasis en abdomen y ombligo usando toalla limpia.',
+    horas_previas: 12,
+    es_critica: false,
+    fecha_limite: new Date(new Date(in36Hours).getTime() - 12 * 3600 * 1000).toISOString(),
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-e-2',
+    cirugia_id: MOCK_CIRUGIA_E_ID,
+    titulo: 'Ayuno de Sólidos',
+    descripcion: 'Ayuno estricto de alimentos sólidos 8 horas antes del ingreso.',
+    horas_previas: 8,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in36Hours).getTime() - 8 * 3600 * 1000).toISOString(),
+    tipo_alarma: 'recordatorio_periodico',
+    intervalo_minutos: 60,
+    alarma_activa: true,
+    es_vigilancia_continua: true,
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'pauta-e-3',
+    cirugia_id: MOCK_CIRUGIA_E_ID,
+    titulo: 'Presentación Puntual en Admisiones',
+    descripcion: 'Llegada 2 horas antes con ropa cómoda y documento de identidad.',
+    horas_previas: 2,
+    es_critica: true,
+    fecha_limite: new Date(new Date(in36Hours).getTime() - 2 * 3600 * 1000).toISOString(),
     created_at: now.toISOString(),
   }
 ];
@@ -487,6 +767,108 @@ export const initialMockCheckins: Checkin[] = [
     fecha_respuesta: null,
     observaciones: null,
     updated_at: now.toISOString(),
+  },
+
+  // Checkins Samuel Ramírez (Caso C)
+  {
+    id: 'check-c-1',
+    pauta_id: 'pauta-c-1',
+    estado: 'completado',
+    fecha_respuesta: new Date(now.getTime() - 4 * 3600 * 1000).toISOString(),
+    observaciones: 'Dieta liviana iniciada sin grasas.',
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-c-2',
+    pauta_id: 'pauta-c-2',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: 'Pendiente confirmar suspensión de analgésicos.',
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-c-3',
+    pauta_id: 'pauta-c-3',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: null,
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-c-4',
+    pauta_id: 'pauta-c-4',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: null,
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-c-5',
+    pauta_id: 'pauta-c-5',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: null,
+    updated_at: now.toISOString(),
+  },
+
+  // Checkins Alonso Rodríguez (Caso D)
+  {
+    id: 'check-d-1',
+    pauta_id: 'pauta-d-1',
+    estado: 'completado',
+    fecha_respuesta: new Date(now.getTime() - 20 * 3600 * 1000).toISOString(),
+    observaciones: 'Medicación ajustada con su médico internista.',
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-d-2',
+    pauta_id: 'pauta-d-2',
+    estado: 'completado',
+    fecha_respuesta: new Date(now.getTime() - 6 * 3600 * 1000).toISOString(),
+    observaciones: 'Instrucción de no rasurado comprendida.',
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-d-3',
+    pauta_id: 'pauta-d-3',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: null,
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-d-4',
+    pauta_id: 'pauta-d-4',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: null,
+    updated_at: now.toISOString(),
+  },
+
+  // Checkins Luis Solarte (Caso E)
+  {
+    id: 'check-e-1',
+    pauta_id: 'pauta-e-1',
+    estado: 'completado',
+    fecha_respuesta: new Date(now.getTime() - 8 * 3600 * 1000).toISOString(),
+    observaciones: 'Baño antiséptico ejecutado.',
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-e-2',
+    pauta_id: 'pauta-e-2',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: null,
+    updated_at: now.toISOString(),
+  },
+  {
+    id: 'check-e-3',
+    pauta_id: 'pauta-e-3',
+    estado: 'pendiente',
+    fecha_respuesta: null,
+    observaciones: null,
+    updated_at: now.toISOString(),
   }
 ];
 
@@ -506,6 +888,33 @@ export const initialMockAlertas: Alerta[] = [
     cirugia_id: MOCK_CIRUGIA_B_ID,
     nivel: 'rojo',
     mensaje: 'RIESGO CRÍTICO DE CANCELACIÓN: Pauta de Ayuno Estricto (-8h) no confirmada. Cirugía en 6 horas.',
+    atendida: false,
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'alert-3',
+    paciente_id: MOCK_PACIENTE_C_ID,
+    cirugia_id: MOCK_CIRUGIA_C_ID,
+    nivel: 'amarillo',
+    mensaje: 'Pauta de suspensión de AINEs próxima al límite para Colecistectomía en 24h. Pendiente confirmación.',
+    atendida: false,
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'alert-4',
+    paciente_id: MOCK_PACIENTE_D_ID,
+    cirugia_id: MOCK_CIRUGIA_D_ID,
+    nivel: 'verde',
+    mensaje: 'Preparación oportuna en curso para Herniorrafia Inguinal en 72h.',
+    atendida: false,
+    created_at: now.toISOString(),
+  },
+  {
+    id: 'alert-5',
+    paciente_id: MOCK_PACIENTE_E_ID,
+    cirugia_id: MOCK_CIRUGIA_E_ID,
+    nivel: 'verde',
+    mensaje: 'Protocolo preoperatorio ambulatorio sin novedades para Apendicectomía en 36h.',
     atendida: false,
     created_at: now.toISOString(),
   }
@@ -710,7 +1119,7 @@ El apéndice no es un órgano vital. Su extracción no altera en absoluto la abs
     created_at: now.toISOString()
   },
   // =========================================================================
-  // MATERIALES EDUCATIVOS: ARTROPLASTIA TOTAL DE CADERA (Elena Restrepo)
+  // MATERIALES EDUCATIVOS: ARTROPLASTIA TOTAL DE CADERA (Luisa Castro)
   // =========================================================================
   // VIDEO DIDÁCTICO CADERA
   {
@@ -914,9 +1323,9 @@ La articulación coxofemoral conecta el fémur con la pelvis. Cuando el cartíla
 // ============================================================================
 // CAPA DE PERSISTENCIA HÍBRIDA LOCAL (Sincroniza nuevos registros entre sesiones)
 // ============================================================================
-const STORAGE_KEY_DYNAMIC_DATA = 'tech_touch_dynamic_records_v1';
-const STORAGE_KEY_EXTENDED_META = 'tech_touch_extended_meta_v1';
-const STORAGE_KEY_CATALOGO_CIRUGIAS = 'tech_touch_catalogo_cirugias_v1';
+const STORAGE_KEY_DYNAMIC_DATA = 'precare_dynamic_records_v1';
+const STORAGE_KEY_EXTENDED_META = 'precare_extended_meta_v1';
+const STORAGE_KEY_CATALOGO_CIRUGIAS = 'precare_catalogo_cirugias_v1';
 
 interface StoredDynamicRecords {
   pacientes: Paciente[];

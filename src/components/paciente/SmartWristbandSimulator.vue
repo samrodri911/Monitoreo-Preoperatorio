@@ -3,6 +3,8 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { usePacienteStore } from '../../stores/pacienteStore'
 import { useVoiceCall } from '../../composables/useVoiceCall'
 import { usePautaAlarms } from '../../composables/usePautaAlarms'
+import { useAnxietyMonitoring } from '../../composables/useAnxietyMonitoring'
+import { edgeTtsService } from '../../services/edgeTtsService'
 import type { PautaConCheckin } from '../../types/database.types'
 import {
   Watch,
@@ -18,6 +20,7 @@ import {
   RotateCcw,
   Maximize2,
   Bot,
+  HeartHandshake,
 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -31,6 +34,9 @@ const emit = defineEmits<{
 const pacienteStore = usePacienteStore()
 const voiceCall = useVoiceCall()
 const pautaAlarms = usePautaAlarms()
+const anxiety = useAnxietyMonitoring()
+const isSurveyWristbandAlertActive = ref(false)
+let surveyVibrationTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Control de apertura del panel flotante
 const internalOpen = ref(true)
@@ -73,15 +79,15 @@ let pressStartTime = 0
 const preguntasFrecuentesDemo = [
   '¿Puedo tomar agua?',
   '¿A qué hora inicio el ayuno?',
-  '¿Puedo tomar mi pastilla de la presión?',
   'Tengo nervios por la anestesia',
+  'Tengo mucho miedo, quiero cancelar',
 ]
 
-// Nombre de pila del paciente activo (ej. "Carlos")
+// Nombre de pila del paciente activo (ej. "Gerardo")
 const primerNombrePaciente = computed(() => {
   const full = pacienteStore.paciente?.nombre_completo?.trim()
-  if (!full) return 'Carlos'
-  return full.split(/\s+/)[0] || 'Carlos'
+  if (!full) return 'Gerardo'
+  return full.split(/\s+/)[0] || 'Gerardo'
 })
 
 // Siguiente pauta pendiente para simular o confirmar
@@ -106,6 +112,97 @@ watch(
   }
 )
 
+// Respuestas rápidas contextuales cuando la encuesta por voz está activa en la pulsera
+const respuestasRapidasEncuestaVoz = computed<string[]>(() => {
+  if (!voiceCall.isWristbandSurveyActive.value) return preguntasFrecuentesDemo
+  switch (voiceCall.wristbandSurveyStep.value) {
+    case 'q1_animo':
+      return [
+        'Estoy tranquilo y listo',
+        'Un poco nervioso',
+        'Tengo mucho miedo, quiero cancelar',
+        'Prefiero hacerla en la web',
+      ]
+    case 'q2_inquietud':
+      return [
+        'Me preocupa la anestesia',
+        'Me preocupa el dolor',
+        'Todo está bien',
+        'Prefiero hacerla en la web',
+      ]
+    case 'q3_cancelacion':
+      return [
+        'No, sigo adelante con mi cirugía',
+        'Lo he dudado un poco',
+        'Sí, quiero cancelar',
+        'Prefiero hacerla en la web',
+      ]
+    default:
+      return preguntasFrecuentesDemo
+  }
+})
+
+const pasoEncuestaLabel = computed(() => {
+  switch (voiceCall.wristbandSurveyStep.value) {
+    case 'q1_animo':
+      return 'Encuesta por Voz • Paso 1/3 (Estado emocional)'
+    case 'q2_inquietud':
+      return 'Encuesta por Voz • Paso 2/3 (Inquietud principal)'
+    case 'q3_cancelacion':
+      return 'Encuesta por Voz • Paso 3/3 (Confirmación)'
+    default:
+      return ''
+  }
+})
+
+function iniciarEncuestaEnLlamadaPulsera() {
+  // Desbloqueo síncrono del elemento de audio bajo el gesto directo del usuario
+  edgeTtsService.unlockAudio()
+  anxiety.simularEncuestaPulsera(pacienteStore.paciente, pacienteStore.cirugia)
+}
+
+// Sincronizar si `useAnxietyMonitoring` dispara encuesta EXCLUSIVA en la pulsera (100% en llamada, sin abrir web)
+watch(
+  () => anxiety.pendingSurveyWristbandEvent.value,
+  (evt) => {
+    if (!evt) {
+      isSurveyWristbandAlertActive.value = false
+      return
+    }
+    isPanelOpen.value = true
+    isSurveyWristbandAlertActive.value = true
+    isVibrating.value = true
+    playCallConnectTone()
+
+    if (surveyVibrationTimeout) clearTimeout(surveyVibrationTimeout)
+    surveyVibrationTimeout = setTimeout(() => {
+      if (!activeAlarmPauta.value) {
+        isVibrating.value = false
+      }
+    }, 2000)
+
+    // Desbloqueo de síntesis de voz en el navegador por interacción del usuario
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.resume()
+      } catch {}
+    }
+
+    // Iniciar la encuesta 100% conversacional por llamada de voz en la pulsera
+    voiceCall.startWristbandSurveyCall()
+    anxiety.clearWristbandSurveyNotification()
+  }
+)
+
+watch(
+  () => voiceCall.isWristbandSurveyActive.value,
+  (active) => {
+    if (!active) {
+      isSurveyWristbandAlertActive.value = false
+    }
+  }
+)
+
 // Determinar si una pauta es crítica o vencida (Rojo vs Amarillo/Ámbar)
 function esPautaCriticaOVencida(pauta: PautaConCheckin): boolean {
   if (pauta.es_critica) {
@@ -126,6 +223,7 @@ const ledMode = computed<WristbandLedMode>(() => {
       ? 'alarm_red'
       : 'alarm_amber'
   }
+  if (isSurveyWristbandAlertActive.value) return 'call_blue'
   if (voiceCall.isCallActive.value) {
     if (voiceCall.callStatus.value === 'listening') return 'call_listening'
     if (voiceCall.callStatus.value === 'thinking') return 'call_thinking'
@@ -370,12 +468,8 @@ function iniciarLlamadaPulsera() {
 
   isPanelOpen.value = true
 
-  // Desbloqueo de síntesis de voz en el navegador por interacción del usuario
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    try {
-      window.speechSynthesis.resume()
-    } catch {}
-  }
+  // Desbloqueo síncrono de audio HTML5 y síntesis de voz bajo el clic del usuario
+  edgeTtsService.unlockAudio()
 
   playCallConnectTone()
   voiceCall.startWristbandCall({ showModal: false })
@@ -388,6 +482,7 @@ function finalizarLlamadaPulsera() {
 }
 
 function enviarPreguntaRapida(pregunta: string) {
+  edgeTtsService.unlockAudio()
   if (!voiceCall.isCallActive.value) {
     iniciarLlamadaPulsera()
     setTimeout(() => {
@@ -427,7 +522,11 @@ function activarAlarmaEnPulsera(pauta: PautaConCheckin, speakWithSofi = true) {
   }, 4200)
 
   if (speakWithSofi) {
-    const recordatorioVoz = `Hola ${primerNombrePaciente.value}, es hora de tu pauta: ${pauta.titulo}. ${pauta.descripcion}. Presiona el botón de tu pulsera para confirmar.`
+    const cfg = pautaAlarms.getOrCreateConfig(pauta)
+    const recordatorioVoz = cfg.es_vigilancia_continua
+      ? `Hola ${primerNombrePaciente.value}, recordatorio de tu ayuno: ${pauta.titulo}. Recuerda no ingerir alimentos ni bebidas. Presiona el botón de tu pulsera para apagar la alarma y confirmar que sigues en ayuno.`
+      : `Hola ${primerNombrePaciente.value}, es hora de tu pauta: ${pauta.titulo}. ${pauta.descripcion}. Presiona el botón de tu pulsera para confirmar.`
+
     voiceCall.speakWristbandReminder(recordatorioVoz, {
       onStart: () => {
         isWristbandSpeaking.value = true
@@ -451,19 +550,25 @@ function detenerAlarmaPulsera() {
 
 async function simularAlarmaPautaPendiente() {
   isPanelOpen.value = true
-  let target = siguientePautaPendiente.value
+  // Buscar preferentemente una pauta continua de ayuno para probar el flujo recurrente
+  let target =
+    pacienteStore.pautas.find(
+      (p) =>
+        p.es_critica &&
+        (p.titulo.toLowerCase().includes('ayuno') ||
+          p.descripcion.toLowerCase().includes('ayuno'))
+    ) || siguientePautaPendiente.value
 
   if (!target && pacienteStore.pautas.length > 0) {
-    const primera =
+    target =
       pacienteStore.pautas.find((p) => p.es_critica) || pacienteStore.pautas[0]
-    if (primera) {
-      await pacienteStore.toggleCheckin(primera.id)
-      target =
-        pacienteStore.pautas.find((p) => p.id === primera.id) || primera
-    }
   }
 
   if (target) {
+    // Si estaba marcada como completada en esta hora, la desmarcamos para disparar la alarma limpia
+    if (target.checkin?.estado === 'completado') {
+      await pacienteStore.desmarcarCheckin(target.id)
+    }
     activarAlarmaEnPulsera(target, true)
   }
 }
@@ -479,6 +584,7 @@ async function confirmarPautaConUnClic() {
     activeAlarmPauta.value || pautaAlarms.ringingAlarm.value?.pauta
   if (!pautaPorConfirmar) return
 
+  const cfg = pautaAlarms.getOrCreateConfig(pautaPorConfirmar)
   voiceCall.stopWristbandSpeech()
   detenerAlarmaPulsera()
   if (pautaAlarms.ringingAlarm.value) {
@@ -494,7 +600,14 @@ async function confirmarPautaConUnClic() {
     isConfirmGreen.value = false
   }, 2500)
 
-  await pacienteStore.completarCheckin(pautaPorConfirmar.id)
+  if (cfg.es_vigilancia_continua) {
+    await pacienteStore.confirmarCheckinRecurrente(
+      pautaPorConfirmar.id,
+      `Ayuno verificado desde pulsera a las ${new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} (vigilancia horaria activa)`
+    )
+  } else {
+    await pacienteStore.completarCheckin(pautaPorConfirmar.id)
+  }
 }
 
 // =========================================================================
@@ -1053,18 +1166,29 @@ onUnmounted(() => {
             </p>
           </div>
 
-          <!-- Preguntas Rápidas de Prueba (Simulación con 1 Clic) -->
+          <!-- Respuestas Rápidas de Prueba (Contextuales para Encuesta por Voz o Llamada Normal) -->
           <div class="space-y-1.5 pt-1">
+            <div v-if="voiceCall.isWristbandSurveyActive.value" class="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-indigo-500/20 border border-indigo-400/40 text-[10px] font-extrabold text-indigo-200">
+              <HeartHandshake class="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+              <span>{{ pasoEncuestaLabel }}</span>
+            </div>
             <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-              Preguntas de Prueba Rápida (1 Clic):
+              {{ voiceCall.isWristbandSurveyActive.value ? 'Responder por voz (o probar con 1 clic):' : 'Preguntas de Prueba Rápida (1 Clic):' }}
             </span>
             <div class="flex flex-wrap gap-1">
               <button
-                v-for="pregunta in preguntasFrecuentesDemo"
+                v-for="pregunta in respuestasRapidasEncuestaVoz"
                 :key="pregunta"
                 type="button"
                 @click="enviarPreguntaRapida(pregunta)"
-                class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-teal-400 text-[11px] text-teal-200 transition-colors cursor-pointer text-left"
+                class="px-2 py-1 rounded-lg border text-[11px] transition-colors cursor-pointer text-left"
+                :class="
+                  pregunta.toLowerCase().includes('en la web')
+                    ? 'bg-indigo-900/60 hover:bg-indigo-800 border-indigo-400/50 text-indigo-200 font-bold'
+                    : pregunta.toLowerCase().includes('cancelar')
+                    ? 'bg-rose-950/70 hover:bg-rose-900 border-rose-400/50 text-rose-200 font-bold'
+                    : 'bg-slate-800 hover:bg-slate-700 border-slate-700 hover:border-teal-400 text-teal-200'
+                "
               >
                 "{{ pregunta }}"
               </button>
@@ -1130,7 +1254,12 @@ onUnmounted(() => {
             {{ activeAlarmPauta.titulo }}
           </p>
           <p class="text-[11px] text-amber-100/90 leading-snug">
-            Haz <strong>1 clic en el botón circular</strong> de la pulsera para confirmar y marcar el check-in.
+            <template v-if="pautaAlarms.getOrCreateConfig(activeAlarmPauta).es_vigilancia_continua">
+              Haz <strong>1 clic en el botón</strong> para apagar la alarma y confirmar que sigues en ayuno. Se volverá a desmarcar antes de la siguiente hora.
+            </template>
+            <template v-else>
+              Haz <strong>1 clic en el botón circular</strong> de la pulsera para confirmar y marcar el check-in.
+            </template>
           </p>
         </div>
 
@@ -1142,12 +1271,31 @@ onUnmounted(() => {
           <CheckCircle2 class="w-5 h-5 text-emerald-400 shrink-0" />
           <div class="min-w-0">
             <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 block">
-              ¡Check-in Confirmado desde la Pulsera!
+              ¡Alarma Apagada y Confirmada!
             </span>
             <p class="text-xs font-bold text-white truncate">
               {{ lastConfirmedTitle }}
             </p>
+            <span class="text-[10px] text-emerald-300/80 block">
+              Se reactivará automáticamente para tu próxima alarma horaria.
+            </span>
           </div>
+        </div>
+
+        <!-- Tarjeta de Notificación de Encuesta Emocional 50% en la Pulsera -->
+        <div
+          v-else-if="isSurveyWristbandAlertActive"
+          class="p-3 rounded-xl bg-indigo-500/20 border border-indigo-400/60 space-y-1.5"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-indigo-200 flex items-center gap-1">
+              <HeartHandshake class="w-3.5 h-3.5 text-indigo-300" />
+              <span>Aviso Emocional PreCare (50% tiempo)</span>
+            </span>
+          </div>
+          <p class="text-[11px] text-indigo-100 leading-snug">
+            Sofi te envió una <strong>encuesta rápida de tranquilidad</strong> a tu pantalla porque aún no habíamos conversado.
+          </p>
         </div>
 
         <!-- ===============================================================
@@ -1183,6 +1331,17 @@ onUnmounted(() => {
           >
             <BellRing class="w-4 h-4" />
             <span>Simular Alarma de Pauta Pendiente</span>
+          </button>
+
+          <!-- BOTÓN PRINCIPAL 3: SIMULAR ENCUESTA DE ANSIEDAD 100% EN LLAMADA POR PULSERA -->
+          <button
+            type="button"
+            @click="iniciarEncuestaEnLlamadaPulsera"
+            class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-extrabold text-xs shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all"
+            title="Simula la encuesta de ansiedad 100% por llamada en la pulsera (desconectada de la web, a menos que pidas pasar a la web)"
+          >
+            <HeartHandshake class="w-4 h-4" />
+            <span>Simular Encuesta Pulsera (Solo Llamada)</span>
           </button>
 
           <p v-if="siguientePautaPendiente" class="text-[11px] text-slate-400 truncate text-center">

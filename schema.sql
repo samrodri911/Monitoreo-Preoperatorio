@@ -1,5 +1,5 @@
 -- ==============================================================================
--- ECOSISTEMA PREOPERATORIO "TECH-AND-TOUCH" (FASE 1: MVP BASE)
+-- ECOSISTEMA PREOPERATORIO "PRECARE" (FASE 1: MVP BASE)
 -- Script de Base de Datos para Supabase (PostgreSQL 15+)
 -- ==============================================================================
 
@@ -136,10 +136,10 @@ DECLARE
     v_pauta_b4_id UUID := gen_random_uuid();
 BEGIN
     -- --------------------------------------------------------------------------
-    -- CASO A: Carlos Mendoza (Cirugía en 48 horas - Preparación Óptima / Verde)
+    -- CASO A: Gerardo Andrés Martínez (Cirugía en 48 horas - Preparación Óptima / Verde)
     -- --------------------------------------------------------------------------
     INSERT INTO pacientes (id, nombre_completo, documento, telefono, edad, contacto_emergencia)
-    VALUES (v_paciente_a_id, 'Carlos Alberto Mendoza', '1020304050', '+57 300 123 4567', 58, 'Marta Mendoza (Hija) - 301 987 6543');
+    VALUES (v_paciente_a_id, 'Gerardo Andrés Martínez', '1020304050', '+57 300 123 4567', 58, 'Camila Martínez (Hija) - 301 987 6543');
 
     INSERT INTO cirugias (id, paciente_id, tipo_cirugia, fecha_programada, estado)
     VALUES (v_cirugia_a_id, v_paciente_a_id, 'Colecistectomía Laparoscópica', NOW() + INTERVAL '48 hours', 'programada');
@@ -163,10 +163,10 @@ BEGIN
     VALUES (v_paciente_a_id, v_cirugia_a_id, 'verde', 'Paciente con check-ins críticos al día. Procedimiento en 48h con preparación óptima.', false);
 
     -- --------------------------------------------------------------------------
-    -- CASO B: Elena Restrepo (Cirugía en 6 horas - RIESGO DE CANCELACIÓN / Rojo)
+    -- CASO B: Luisa Castro (Cirugía en 6 horas - RIESGO DE CANCELACIÓN / Rojo)
     -- --------------------------------------------------------------------------
     INSERT INTO pacientes (id, nombre_completo, documento, telefono, edad, contacto_emergencia)
-    VALUES (v_paciente_b_id, 'Elena María Restrepo', '9876543210', '+57 312 456 7890', 67, 'Andrés Gómez (Esposo) - 315 222 3344');
+    VALUES (v_paciente_b_id, 'Luisa Castro', '9876543210', '+57 312 456 7890', 67, 'Alonso Rodríguez (Esposo) - 315 222 3344');
 
     INSERT INTO cirugias (id, paciente_id, tipo_cirugia, fecha_programada, estado)
     VALUES (v_cirugia_b_id, v_paciente_b_id, 'Artroplastia Total de Cadera', NOW() + INTERVAL '6 hours', 'en_preparacion');

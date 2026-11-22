@@ -12,7 +12,7 @@ import {
 } from '../lib/mockData';
 import { usePacienteStore } from './pacienteStore';
 
-const AUTH_STORAGE_KEY = 'tech_touch_auth_session_v1';
+const AUTH_STORAGE_KEY = 'precare_auth_session_v1';
 
 interface StoredSession {
   role: UserRole;

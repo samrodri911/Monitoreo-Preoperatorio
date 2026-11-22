@@ -3,6 +3,8 @@ import { usePacienteStore } from '../stores/pacienteStore';
 import { aiAssistantService } from '../services/aiAssistant';
 import { edgeTtsService } from '../services/edgeTtsService';
 import { supabase, isSupabaseConfigured, mockRealtimeBus } from '../lib/supabase';
+import { useAnxietyMonitoring } from './useAnxietyMonitoring';
+import type { NivelAnsiedad } from '../types/database.types';
 
 // Tipado para la Web Speech API
 interface SpeechRecognitionErrorEvent extends Event {
@@ -47,15 +49,39 @@ const callHistory = ref<Array<{ role: 'user' | 'assistant'; content: string }>>(
 const lastUserTranscript = ref<string>('');
 const lastAssistantResponse = ref<string>('');
 
+export type WristbandSurveyStep = 'idle' | 'q1_animo' | 'q2_inquietud' | 'q3_cancelacion' | 'completed';
+const isWristbandSurveyActive = ref<boolean>(false);
+const wristbandSurveyStep = ref<WristbandSurveyStep>('idle');
+const wristbandSurveyDraft = ref<{
+  animoTexto: string;
+  nivel: NivelAnsiedad;
+  puntaje: number;
+  inquietud: string;
+  riesgoCancelacion: boolean;
+  transcripciones: string[];
+}>({
+  animoTexto: '',
+  nivel: 'baja',
+  puntaje: 2,
+  inquietud: '',
+  riesgoCancelacion: false,
+  transcripciones: [],
+});
+
 let recognitionInstance: any = null;
 let synth: SpeechSynthesis | null = null;
 let currentUtterance: SpeechSynthesisUtterance | null = null;
 let timerInterval: any = null;
 let audioLevelInterval: any = null;
 let silenceTimer: any = null;
+let pendingListenDelayTimer: ReturnType<typeof setTimeout> | null = null;
 let finalTranscriptBuffer = '';
 let activeAbortController: AbortController | null = null;
 let resolvedOllamaModel: string | null = null;
+let isProcessingTurn = false;
+let currentSpeakGeneration = 0;
+let lastProcessedSpeech = '';
+let lastProcessedAt = 0;
 
 /**
  * Resuelve automáticamente el modelo de chat instalado en Ollama
@@ -169,13 +195,10 @@ function setupRecognitionEvents() {
   };
 
   recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
-    if (!isCallActive.value || isMuted.value) return;
-
-    // Si el usuario ya comenzó a hablar, conmutar de inmediato a escucha
-    if (callStatus.value === 'greeting') {
-      callStatus.value = 'listening';
+    // BLOQUEO ESTRICTO ANTI-ECO: Solo procesar micrófono si estamos activamente escuchando y sin turno en curso
+    if (!isCallActive.value || isMuted.value || isProcessingTurn || callStatus.value !== 'listening') {
+      return;
     }
-    if (callStatus.value !== 'listening') return;
 
     let interimTranscript = '';
     for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -188,8 +211,7 @@ function setupRecognitionEvents() {
     }
 
     const currentFullText = (finalTranscriptBuffer + ' ' + interimTranscript).trim();
-    console.log(`[VoiceCall] Evento onresult -> transcript parcial: "${interimTranscript.trim()}" | transcript final: "${finalTranscriptBuffer.trim()}"`);
-    console.log('[VoiceCall] Escuchado hasta ahora:', currentFullText);
+    console.log(`[VoiceCall] Evento onresult -> parcial: "${interimTranscript.trim()}" | final: "${finalTranscriptBuffer.trim()}"`);
 
     if (currentFullText.length > 0) {
       lastUserTranscript.value = currentFullText;
@@ -198,6 +220,7 @@ function setupRecognitionEvents() {
       // Reiniciar temporizador de silencio (1.5 segundos) cada vez que el usuario produce fonemas
       if (silenceTimer) clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => {
+        if (!isCallActive.value || isProcessingTurn || callStatus.value !== 'listening') return;
         console.log('[VoiceCall] Temporizador de silencio disparado con texto:', currentFullText);
         procesarTurnoDelPaciente(currentFullText);
       }, 1500);
@@ -230,9 +253,9 @@ function setupRecognitionEvents() {
 
     // En Chromium, el micrófono a menudo se desconecta solo tras inactividad emitiendo onend.
     // Si la llamada sigue activa y el estado es 'listening', reabrir automáticamente para mantener la escucha activa:
-    if (isCallActive.value && callStatus.value === 'listening' && !isMuted.value) {
+    if (isCallActive.value && callStatus.value === 'listening' && !isMuted.value && !isProcessingTurn) {
       setTimeout(() => {
-        if (isCallActive.value && callStatus.value === 'listening' && !isMuted.value) {
+        if (isCallActive.value && callStatus.value === 'listening' && !isMuted.value && !isProcessingTurn) {
           try {
             recognitionInstance.start();
             console.log('[VoiceCall] Micrófono reanudado automáticamente tras onend inactivo');
@@ -242,7 +265,7 @@ function setupRecognitionEvents() {
             }
           }
         }
-      }, 250);
+      }, 280);
     }
   };
 }
@@ -251,8 +274,8 @@ function setupRecognitionEvents() {
  * Inicia la captura del micrófono
  */
 function startListening() {
-  if (!isCallActive.value || isMuted.value) return;
-  if (callStatus.value === 'ending' || callStatus.value === 'transferred') {
+  if (!isCallActive.value || isMuted.value || isProcessingTurn) return;
+  if (callStatus.value === 'ending' || callStatus.value === 'transferred' || callStatus.value === 'idle') {
     return;
   }
 
@@ -271,7 +294,7 @@ function startListening() {
     if (err?.name === 'InvalidStateError') {
       console.log('[VoiceCall] Micrófono ocupado o en transición (InvalidStateError), reintentando en 250ms...');
       setTimeout(() => {
-        if (callStatus.value === 'listening' && isCallActive.value && !isMuted.value) {
+        if (callStatus.value === 'listening' && isCallActive.value && !isMuted.value && !isProcessingTurn) {
           try {
             recognitionInstance.start();
             console.log('[VoiceCall] Micrófono solicitado / iniciado (en reintento)');
@@ -283,7 +306,7 @@ function startListening() {
     } else {
       console.warn('[VoiceCall] Error al iniciar micrófono:', err);
       setTimeout(() => {
-        if (callStatus.value === 'listening' && isCallActive.value && !isMuted.value) {
+        if (callStatus.value === 'listening' && isCallActive.value && !isMuted.value && !isProcessingTurn) {
           try {
             recognitionInstance.start();
             console.log('[VoiceCall] Micrófono solicitado / iniciado (en reintento)');
@@ -295,28 +318,45 @@ function startListening() {
 }
 
 /**
- * Detiene la captura del micrófono de forma segura
+ * Detiene la captura del micrófono inmediatamente sin emitir resultados tardíos
  */
 function stopListening() {
   if (silenceTimer) {
     clearTimeout(silenceTimer);
     silenceTimer = null;
   }
+  if (pendingListenDelayTimer) {
+    clearTimeout(pendingListenDelayTimer);
+    pendingListenDelayTimer = null;
+  }
+  finalTranscriptBuffer = '';
   if (recognitionInstance) {
     try {
-      recognitionInstance.stop();
-    } catch {}
+      // abort() evita que Chrome emita un onresult tardío con palabras repetidas tras detener
+      recognitionInstance.abort();
+    } catch {
+      try {
+        recognitionInstance.stop();
+      } catch {}
+    }
   }
 }
 
 /**
  * Sintetiza la voz del asistente por altavoces (Voz neuronal hiperrealista "Sofi" con fallback nativo)
  */
-function speak(text: string, onDone?: () => void) {
-  // Detener micrófono de inmediato mientras habla el asistente para evitar eco
-  stopListening();
+function speak(text: string, onDone?: () => void, opts?: { isEnding?: boolean }) {
+  const speakGen = ++currentSpeakGeneration;
 
-  // 1. Detener cualquier audio previo (neuronal o nativo)
+  // 1. Detener micrófono de inmediato y marcar estado 'speaking'/'ending' ANTES del fetch TTS
+  stopListening();
+  if (opts?.isEnding) {
+    callStatus.value = 'ending';
+  } else if (callStatus.value !== 'greeting' && callStatus.value !== 'transferred') {
+    callStatus.value = 'speaking';
+  }
+
+  // 2. Detener cualquier audio previo (neuronal o nativo)
   edgeTtsService.stop();
   if (currentUtterance) {
     currentUtterance.onstart = null;
@@ -339,55 +379,91 @@ function speak(text: string, onDone?: () => void) {
   console.log('[VoiceCall] Disparando síntesis de voz con texto:', clean);
 
   let doneFired = false;
-  let safetyWatchdog: any = null;
+  let safetyWatchdog: ReturnType<typeof setTimeout> | null = null;
 
   const finishTurn = () => {
-    if (doneFired) return;
+    if (doneFired || speakGen !== currentSpeakGeneration) return;
     doneFired = true;
-    if (safetyWatchdog) clearTimeout(safetyWatchdog);
+    if (safetyWatchdog) {
+      clearTimeout(safetyWatchdog);
+      safetyWatchdog = null;
+    }
     stopSimulatingAudioWaves();
     audioLevel.value = 0;
-    if (!isCallActive.value || callStatus.value === 'ending' || callStatus.value === 'transferred' || callStatus.value === 'idle') {
+
+    if (!isCallActive.value || callStatus.value === 'idle') {
       return;
     }
+
+    // Si era una despedida/cierre (isEnding: true), ejecutar callback (hangUp) limpiamente
+    if (opts?.isEnding) {
+      onDone?.();
+      return;
+    }
+
+    if (callStatus.value === 'transferred') {
+      return;
+    }
+
     if (onDone) {
       onDone();
     } else {
-      startListening();
+      // Pausa anti-eco de 450ms tras finalizar el audio del altavoz antes de reabrir el micrófono
+      if (pendingListenDelayTimer) clearTimeout(pendingListenDelayTimer);
+      pendingListenDelayTimer = setTimeout(() => {
+        if (speakGen === currentSpeakGeneration && isCallActive.value && !isProcessingTurn) {
+          startListening();
+        }
+      }, 450);
     }
   };
 
-  // Watchdog de seguridad: garantiza que el micrófono siempre se active tras el tiempo esperado de habla
-  const maxWaitMs = Math.max(4500, (clean.length / 9) * 1000 + 3000);
+  // Fase 1 del watchdog: espera generosa de 12s mientras carga el audio del microservicio Edge-TTS
   safetyWatchdog = setTimeout(() => {
-    console.log('[VoiceCall] Watchdog speak(): forzando fin de voz y apertura de micrófono');
-    finishTurn();
-  }, maxWaitMs);
+    if (speakGen === currentSpeakGeneration) {
+      console.warn('[VoiceCall] Watchdog de carga speak() disparado (12s sin onStart)');
+      finishTurn();
+    }
+  }, 12000);
 
   edgeTtsService.playNeuralVoice(
     clean,
     // onEnded
     () => {
-      console.log('[VoiceCall] Sofi terminó de hablar. Reabriendo micrófono...');
+      if (speakGen !== currentSpeakGeneration) return;
+      console.log('[VoiceCall] Sofi terminó de hablar. Preparando siguiente turno...');
       finishTurn();
     },
     // onError
     (e) => {
+      if (speakGen !== currentSpeakGeneration) return;
       console.warn('[VoiceCall] Error o interrupción en reproducción:', e);
       finishTurn();
     },
     // options
     {
       voice: 'es-CO-SalomeNeural',
-      rate: '+18%',
+      rate: '+12%',
       onStart: () => {
-        // Si el usuario colgó mientras cargaba el audio, parar inmediatamente
-        if (!isCallActive.value || callStatus.value === 'idle' || callStatus.value === 'ending') {
+        if (speakGen !== currentSpeakGeneration || !isCallActive.value || callStatus.value === 'idle') {
           edgeTtsService.stop();
           return;
         }
-        callStatus.value = 'speaking';
+        if (!opts?.isEnding && callStatus.value !== 'transferred') {
+          callStatus.value = 'speaking';
+        }
         startSimulatingAudioWaves();
+
+        // Fase 2 del watchdog: una vez que el audio REALMENTE comenzó a reproducirse,
+        // dar tiempo amplio según la longitud del texto para NUNCA cortar la frase a la mitad
+        if (safetyWatchdog) clearTimeout(safetyWatchdog);
+        const playbackMaxMs = Math.max(15000, clean.length * 145 + 4000);
+        safetyWatchdog = setTimeout(() => {
+          if (speakGen === currentSpeakGeneration) {
+            console.warn('[VoiceCall] Watchdog de reproducción speak() alcanzado');
+            finishTurn();
+          }
+        }, playbackMaxMs);
       }
     }
   );
@@ -412,46 +488,94 @@ function stopSimulatingAudioWaves() {
 }
 
 /**
- * Procesa la intervención del paciente (Ollama con stream: false)
+ * Procesa la intervención del paciente (Ollama o Encuesta 100% por voz en pulsera)
  */
 async function procesarTurnoDelPaciente(userSpeech: string) {
   const speech = userSpeech.trim();
   if (!speech || !isCallActive.value) return;
 
-  // 1. Detener de inmediato el micrófono y limpiar buffer
-  if (silenceTimer) {
-    clearTimeout(silenceTimer);
-    silenceTimer = null;
+  // Cerrojo anti-duplicados: evitar doble procesamiento si Chrome dispara 2 eventos seguidos
+  const now = Date.now();
+  if (isProcessingTurn) {
+    console.log('[VoiceCall] Turno ignorado porque ya hay uno en procesamiento:', speech);
+    return;
   }
-  try {
-    recognitionInstance?.stop();
-  } catch {}
-  finalTranscriptBuffer = '';
-
-  // 2. Detección de Despedida / Cierre de llamada
-  if (/adi[oó]s|hasta luego|chao|hasta pronto|colgar|terminar llamada|cerrar llamada/i.test(speech)) {
-    callStatus.value = 'ending';
-    const pacienteStore = usePacienteStore();
-    const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || '';
-    const despedida = `Comprendo${nombre ? ` ${nombre}` : ''}. Que tengas un excelente descanso y mucho ánimo con tu preparación. Estaré aquí si me necesitas. Hasta pronto.`;
-    speak(despedida, () => {
-      hangUp();
-    });
+  if (speech.toLowerCase() === lastProcessedSpeech && now - lastProcessedAt < 2500) {
+    console.log('[VoiceCall] Transcripción duplicada descartada (<2.5s):', speech);
     return;
   }
 
-  // 3. Detección de solicitud explícita de hablar con un humano / enfermería (RD4)
+  isProcessingTurn = true;
+  lastProcessedSpeech = speech.toLowerCase();
+  lastProcessedAt = now;
+
+  // 1. Detener de inmediato el micrófono, bloquear estado a 'thinking' y limpiar buffers
+  callStatus.value = 'thinking';
+  stopListening();
+
+  try {
+    // 2. Detección de Despedida / Cierre de llamada (fuera de palabras accidentales)
+    if (/(adi[oó]s|hasta luego|chao|hasta pronto|colgar llamada|terminar llamada|cerrar llamada)/i.test(speech)) {
+      const pacienteStore = usePacienteStore();
+      const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || '';
+      const despedida = `Comprendo${nombre ? ` ${nombre}` : ''}. Que tengas un excelente descanso y mucho ánimo con tu preparación. Estaré aquí si me necesitas. Hasta pronto.`;
+      speak(despedida, () => {
+        hangUp();
+      }, { isEnding: true });
+      return;
+    }
+
+    // 2.5 Modo Encuesta 100% por Llamada en la Pulsera (completamente desconectado de la web,
+    // salvo que el paciente pida explícitamente hacerla en la web)
+    if (isWristbandSurveyActive.value) {
+      await procesarTurnoEncuestaPulsera(speech);
+      return;
+    }
+
+    await continuarTurnoConversacionalNormal(speech);
+  } finally {
+    isProcessingTurn = false;
+  }
+}
+
+async function continuarTurnoConversacionalNormal(speech: string) {
+
+  // 3. Detección de ansiedad, miedo intenso o intención de cancelar cirugía
+  // Si escucha palabras clave críticas ("quiero cancelar", "tengo mucho miedo", "pánico", etc.):
+  // despliega automáticamente el Directorio de Ayuda y envía alerta URGENTE al tablero médico.
+  const pacienteStore = usePacienteStore();
+  const anxiety = useAnxietyMonitoring();
+  const analisisAnsiedad = await anxiety.evaluarYReportarInteraccionIA({
+    texto: speech,
+    origen: 'llamada_ia',
+    paciente: pacienteStore.paciente,
+    cirugia: pacienteStore.cirugia,
+  });
+
+  if (analisisAnsiedad.abrirDirectorioAyuda) {
+    lastUserTranscript.value = speech;
+    const nombrePac = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Paciente';
+    const respuestaContencion = `Te escucho con mucha atención ${nombrePac}, y entiendo perfectamente que sientas miedo o dudas en este momento. No estás solo. Acabo de abrir el Directorio de Ayuda en tu pantalla con los teléfonos directos de enfermería y apoyo emocional, y ya envié una alerta prioritaria a tu médico en PreCare para que te acompañe hoy mismo. Respira profundo; puedes llamar a cualquiera de las líneas en pantalla o seguir hablando conmigo.`;
+    callHistory.value.push(
+      { role: 'user', content: speech },
+      { role: 'assistant', content: respuestaContencion }
+    );
+    lastAssistantResponse.value = respuestaContencion;
+    speak(respuestaContencion);
+    return;
+  }
+
+  // 4. Detección de solicitud explícita de hablar con un humano / enfermería (RD4)
   if (/enfermer[ií]a|enfermera|enfermero|persona real|humano|hablar con alguien|auxilio|urgencia/i.test(speech)) {
     transferToNurse('El paciente solicitó atención humana explícitamente durante la llamada de voz.');
     return;
   }
 
-  // 4. Cambiar estado visual a pensando
+  // 5. Cambiar estado visual a pensando
   callStatus.value = 'thinking';
   audioLevel.value = 10;
   lastUserTranscript.value = speech;
 
-  const pacienteStore = usePacienteStore();
   const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Paciente';
   const cirugiaNombre = pacienteStore.cirugia?.nombre_sencillo || pacienteStore.cirugia?.tipo_cirugia || 'tu procedimiento';
 
@@ -578,8 +702,16 @@ async function transferToNurse(reason = 'Solicitud de contención o apoyo humano
   audioLevel.value = 0;
 
   const pacienteStore = usePacienteStore();
+  const anxiety = useAnxietyMonitoring();
   const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || '';
-  const mensajeTranquilizador = `Comprendo perfectamente${nombre ? ` ${nombre}` : ''}. Ya he puesto en sobreaviso a nuestra enfermería de turno para brindarte apoyo inmediato. Puedes llamar al número que ves en pantalla o esperar su contacto.`;
+  const mensajeTranquilizador = `Comprendo perfectamente${nombre ? ` ${nombre}` : ''}. Ya he puesto en sobreaviso a nuestra enfermería de turno y abrí el Directorio de Ayuda en tu pantalla para brindarte apoyo inmediato.`;
+
+  anxiety.openHelpDirectory({
+    urgente: true,
+    motivo: reason,
+    origen: 'llamada_ia',
+    alertaEnviadaMedico: true,
+  });
 
   // Registrar alerta prioritaria en Supabase / Realtime
   if (!hasNurseBeenAlerted.value && pacienteStore.paciente?.id) {
@@ -621,6 +753,9 @@ async function transferToNurse(reason = 'Solicitud de contención o apoyo humano
  */
 function startCall(options?: { showModal?: boolean; customGreeting?: string }) {
   console.log('[VoiceCall] Iniciando llamada con Asistente Sofi');
+  // 0. Desbloquear audio HTML5 sincrónicamente bajo el gesto del usuario
+  edgeTtsService.unlockAudio();
+
   // 1. Limpieza rigurosa previa de cualquier audio o proceso anterior
   resetCallState();
 
@@ -643,31 +778,255 @@ function startCall(options?: { showModal?: boolean; customGreeting?: string }) {
   }, 1000);
 
   const pacienteStore = usePacienteStore();
-  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Carlos';
+  const anxiety = useAnxietyMonitoring();
+  anxiety.markAiContact(pacienteStore.paciente?.id);
+  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Gerardo';
 
   const saludoInicial = options?.customGreeting || `Hola ${nombre}, ¿qué duda tienes sobre tu cirugía?`;
   lastAssistantResponse.value = saludoInicial;
   lastUserTranscript.value = '';
 
-  // Síntesis del saludo inicial ultracorto; al terminar, activa el micrófono inmediatamente
-  speak(saludoInicial, () => {
-    if (isCallActive.value && callStatus.value !== 'transferred' && callStatus.value !== 'ending') {
-      startListening();
-    }
-  });
+  // Síntesis del saludo inicial; al terminar, speak() espera 450ms anti-eco y activa el micrófono
+  speak(saludoInicial);
 }
 
 /**
- * Inicia llamada 100% Manos Libres desde el Simulador de Pulsera Phygital
+ * Inicia llamada 100% Manos Libres desde el Simulador de Pulsera PreCare
  * (Sin abrir el modal a pantalla completa para mantener visible el wearable)
  */
 function startWristbandCall(options?: { showModal?: boolean }) {
+  isWristbandSurveyActive.value = false;
+  wristbandSurveyStep.value = 'idle';
   const pacienteStore = usePacienteStore();
-  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Carlos';
+  const anxiety = useAnxietyMonitoring();
+  anxiety.markAiContact(pacienteStore.paciente?.id);
+  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Gerardo';
   startCall({
     showModal: options?.showModal ?? false,
     customGreeting: `Hola ${nombre}, te escucho por el altavoz de tu pulsera. ¿Qué duda tienes sobre tu cirugía o preparación?`,
   });
+}
+
+/**
+ * Inicia la Encuesta de Ansiedad 100% POR LLAMADA EN LA PULSERA (desconectada de la web).
+ * No abre ningún modal en pantalla web a menos que el paciente indique explícitamente que la quiere hacer en la web.
+ */
+function startWristbandSurveyCall() {
+  const pacienteStore = usePacienteStore();
+  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Gerardo';
+
+  isWristbandSurveyActive.value = true;
+  wristbandSurveyStep.value = 'q1_animo';
+  wristbandSurveyDraft.value = {
+    animoTexto: '',
+    nivel: 'baja',
+    puntaje: 2,
+    inquietud: 'Ninguna en especial',
+    riesgoCancelacion: false,
+    transcripciones: [],
+  };
+
+  startCall({
+    showModal: false,
+    customGreeting: `Hola ${nombre}, soy Sofi de PreCare. Ya estamos a mitad de camino de tu cirugía y quiero hacerte un chequeo cortico por aquí. Si prefieres hacerlo en la web, solo dímelo. ¿Cómo te sientes hoy: tranquilo, un poco nervioso o con mucho miedo?`,
+  });
+}
+
+/**
+ * Procesa cada respuesta hablada del paciente durante la encuesta 100% en llamada en la pulsera
+ */
+async function procesarTurnoEncuestaPulsera(speech: string) {
+  const pacienteStore = usePacienteStore();
+  const anxiety = useAnxietyMonitoring();
+  const nombre = pacienteStore.paciente?.nombre_completo?.split(' ')[0] || 'Paciente';
+  const lower = speech.toLowerCase();
+
+  lastUserTranscript.value = speech;
+  wristbandSurveyDraft.value.transcripciones.push(speech);
+
+  // 1. Verificar si el paciente indica explícitamente que prefiere hacer la encuesta en la web
+  if (
+    /(en la web|por la web|en pantalla|en la pantalla|en el computador|en el celular|abrir la encuesta|prefiero en la web|hacerla en la web|hacerlo en la web|mejor en la web|pasar a la web|ver en pantalla)/i.test(
+      speech
+    )
+  ) {
+    isWristbandSurveyActive.value = false;
+    wristbandSurveyStep.value = 'idle';
+    anxiety.abrirEncuestaWebDesdePulsera(pacienteStore.paciente, pacienteStore.cirugia);
+
+    const msgWeb = `Perfecto ${nombre}, acabo de abrir la encuesta rápida en tu pantalla web para que la respondas con calma. Cuelgo la llamada de la pulsera y aquí sigo pendiente si me necesitas.`;
+    callHistory.value.push({ role: 'user', content: speech }, { role: 'assistant', content: msgWeb });
+    lastAssistantResponse.value = msgWeb;
+    speak(msgWeb, () => {
+      hangUp();
+    }, { isEnding: true });
+    return;
+  }
+
+  // 2. Verificar palabras clave críticas inmediatas (quiero cancelar, pánico, mucho miedo, etc.)
+  const analisisCritico = anxiety.analizarDiscursoAnsiedad(speech);
+  if (analisisCritico.abrirDirectorioAyuda) {
+    isWristbandSurveyActive.value = false;
+    wristbandSurveyStep.value = 'completed';
+
+    if (pacienteStore.paciente) {
+      await anxiety.registrarReporteAnsiedad({
+        paciente: pacienteStore.paciente,
+        cirugia: pacienteStore.cirugia,
+        origen: 'encuesta_pulsera',
+        nivel: 'alta',
+        riesgoCancelacion: true,
+        puntaje: 10,
+        estadoAnimo: analisisCritico.riesgoCancelacion
+          ? 'Riesgo de Cancelación / Miedo Intenso (Encuesta Pulsera)'
+          : 'Ansiedad Severa (Encuesta Pulsera)',
+        preocupacionPrincipal: analisisCritico.motivoResumen,
+        fraseDetectada: speech,
+        palabrasClave: analisisCritico.palabrasClave,
+      });
+    }
+
+    anxiety.openHelpDirectory({
+      urgente: true,
+      motivo: analisisCritico.motivoResumen,
+      fraseDetectada: speech,
+      origen: 'encuesta_pulsera',
+      alertaEnviadaMedico: true,
+    });
+
+    const msgUrgente = `Te escucho con mucha atención ${nombre}, y te agradezco tu sinceridad. No estás solo en esto. Ya envié una notificación urgente a tu médico en PreCare y abrí el Directorio de Ayuda con las líneas directas de enfermería y apoyo emocional. Puedes llamar ahora mismo o seguir conversando conmigo por tu pulsera.`;
+    callHistory.value.push({ role: 'user', content: speech }, { role: 'assistant', content: msgUrgente });
+    lastAssistantResponse.value = msgUrgente;
+    speak(msgUrgente);
+    return;
+  }
+
+  // 3. Avanzar por los 3 pasos breves de la encuesta por voz
+  if (wristbandSurveyStep.value === 'q1_animo') {
+    if (/(mucho miedo|p[aá]nico|terror|fatal|horrible|muy mal|muy asustad|ansiedad fuerte|demasiado)/i.test(lower)) {
+      wristbandSurveyDraft.value.nivel = 'alta';
+      wristbandSurveyDraft.value.puntaje = 9;
+      wristbandSurveyDraft.value.animoTexto = 'Con mucho miedo / ansiedad fuerte';
+    } else if (/(nervios|un poco|duda|preocupad|asustad|miedo|ansios|regular|inquiet)/i.test(lower)) {
+      wristbandSurveyDraft.value.nivel = 'moderada';
+      wristbandSurveyDraft.value.puntaje = 6;
+      wristbandSurveyDraft.value.animoTexto = 'Un poco nervioso / con dudas';
+    } else if (/(tranquil|bien|listo|calmad|excelente|normal|segur|sin miedo)/i.test(lower)) {
+      wristbandSurveyDraft.value.nivel = 'baja';
+      wristbandSurveyDraft.value.puntaje = 2;
+      wristbandSurveyDraft.value.animoTexto = 'Tranquilo y listo';
+    } else {
+      wristbandSurveyDraft.value.nivel = 'moderada';
+      wristbandSurveyDraft.value.puntaje = 5;
+      wristbandSurveyDraft.value.animoTexto = `Respuesta hablada: "${speech}"`;
+    }
+
+    wristbandSurveyStep.value = 'q2_inquietud';
+    const q2 = `Gracias por contarme ${nombre}. Segunda pregunta cortica: ¿hay algo que te inquiete más en este momento, como la anestesia, el dolor, la recuperación, el ayuno, o todo está bien?`;
+    callHistory.value.push({ role: 'user', content: speech }, { role: 'assistant', content: q2 });
+    lastAssistantResponse.value = q2;
+    speak(q2);
+    return;
+  }
+
+  if (wristbandSurveyStep.value === 'q2_inquietud') {
+    if (/anestesia|dormir|despertar/i.test(lower)) {
+      wristbandSurveyDraft.value.inquietud = 'La anestesia';
+    } else if (/dolor|duela/i.test(lower)) {
+      wristbandSurveyDraft.value.inquietud = 'Sentir dolor';
+    } else if (/recuperaci[oó]n|posoperatorio|cicatriz/i.test(lower)) {
+      wristbandSurveyDraft.value.inquietud = 'La recuperación';
+    } else if (/ayuno|comer|agua|medicament|preparaci[oó]n/i.test(lower)) {
+      wristbandSurveyDraft.value.inquietud = 'Ayuno o preparación';
+    } else if (/nada|todo est[aá] bien|ningun|todo bien|tranquil/i.test(lower)) {
+      wristbandSurveyDraft.value.inquietud = 'Ninguna en especial';
+    } else {
+      wristbandSurveyDraft.value.inquietud = speech;
+    }
+
+    wristbandSurveyStep.value = 'q3_cancelacion';
+    const q3 = `Perfecto, tomo nota. Y última pregunta: ¿has pensado en aplazar o cancelar tu cirugía, o te sientes dispuesto a seguir adelante?`;
+    callHistory.value.push({ role: 'user', content: speech }, { role: 'assistant', content: q3 });
+    lastAssistantResponse.value = q3;
+    speak(q3);
+    return;
+  }
+
+  if (wristbandSurveyStep.value === 'q3_cancelacion') {
+    const piensaCancelar =
+      /(s[ií]\b|cancelar|aplazar|posponer|suspender|no me quiero operar|no quiero operarme|no s[eé] si ir|mejor no)/i.test(
+        lower
+      ) && !/no\s+(he pensado|quiero cancelar|pienso cancelar)/i.test(lower);
+
+    const tieneDudas = /(duda|dudado|tal vez|a veces|un poco|no estoy seguro|no estoy segura)/i.test(lower);
+
+    if (piensaCancelar) {
+      wristbandSurveyDraft.value.riesgoCancelacion = true;
+      wristbandSurveyDraft.value.nivel = 'alta';
+      wristbandSurveyDraft.value.puntaje = 10;
+    } else if (tieneDudas) {
+      wristbandSurveyDraft.value.riesgoCancelacion = false;
+      if (wristbandSurveyDraft.value.nivel === 'baja') {
+        wristbandSurveyDraft.value.nivel = 'moderada';
+      }
+      wristbandSurveyDraft.value.puntaje = Math.max(wristbandSurveyDraft.value.puntaje, 7);
+    }
+
+    const draft = wristbandSurveyDraft.value;
+    const esUrgente = draft.riesgoCancelacion || draft.nivel === 'alta';
+
+    isWristbandSurveyActive.value = false;
+    wristbandSurveyStep.value = 'completed';
+
+    if (pacienteStore.paciente) {
+      await anxiety.registrarReporteAnsiedad({
+        paciente: pacienteStore.paciente,
+        cirugia: pacienteStore.cirugia,
+        origen: 'encuesta_pulsera',
+        nivel: draft.nivel,
+        riesgoCancelacion: draft.riesgoCancelacion,
+        puntaje: draft.puntaje,
+        estadoAnimo: draft.riesgoCancelacion
+          ? `${draft.animoTexto} • Piensa en cancelar`
+          : tieneDudas
+          ? `${draft.animoTexto} • Con dudas sobre continuar`
+          : draft.animoTexto,
+        preocupacionPrincipal: draft.inquietud,
+        fraseDetectada: esUrgente ? speech : null,
+        palabrasClave: ['encuesta por voz pulsera', draft.inquietud],
+        comentarioPaciente: `Encuesta completada por llamada en pulsera: "${draft.transcripciones.join(' | ')}"`,
+      });
+    }
+
+    if (esUrgente) {
+      anxiety.openHelpDirectory({
+        urgente: true,
+        motivo: draft.riesgoCancelacion
+          ? 'En la encuesta por pulsera el paciente expresó intención de aplazar o cancelar la cirugía.'
+          : 'En la encuesta por pulsera el paciente reportó ansiedad alta antes de su cirugía.',
+        fraseDetectada: speech,
+        origen: 'encuesta_pulsera',
+        alertaEnviadaMedico: true,
+      });
+
+      const cierreUrgente = `Muchas gracias por tu sinceridad ${nombre}. Ya envié un aviso prioritario a tu equipo médico en PreCare y dejé el Directorio de Ayuda abierto con los teléfonos directos de enfermería y apoyo emocional. Si quieres seguir conversando conmigo aquí sigo escuchándote.`;
+      callHistory.value.push({ role: 'user', content: speech }, { role: 'assistant', content: cierreUrgente });
+      lastAssistantResponse.value = cierreUrgente;
+      speak(cierreUrgente);
+    } else if (draft.nivel === 'moderada') {
+      const cierreModerado = `Muchas gracias ${nombre}. Ya envié tus respuestas a tu médico para que esté atento respecto a ${draft.inquietud}. Si tienes alguna pregunta sobre eso puedes hacérmela ahora mismo por aquí, o presionar el botón de tu pulsera para colgar.`;
+      callHistory.value.push({ role: 'user', content: speech }, { role: 'assistant', content: cierreModerado });
+      lastAssistantResponse.value = cierreModerado;
+      speak(cierreModerado);
+    } else {
+      const cierreTranquilo = `Qué alegría escuchar eso ${nombre}. Ya le confirmé a tu médico que te sientes tranquilo y listo para tu cirugía. Sigue así con tus pautas y aquí estaré en tu pulsera cuando me necesites. Hasta pronto.`;
+      callHistory.value.push({ role: 'user', content: speech }, { role: 'assistant', content: cierreTranquilo });
+      lastAssistantResponse.value = cierreTranquilo;
+      speak(cierreTranquilo, () => {
+        hangUp();
+      }, { isEnding: true });
+    }
+  }
 }
 
 /**
@@ -677,6 +1036,7 @@ function speakWristbandReminder(
   text: string,
   callbacks?: { onStart?: () => void; onEnded?: () => void }
 ) {
+  edgeTtsService.unlockAudio();
   edgeTtsService.stop();
   const clean = cleanTextForSpeech(text);
   if (!clean) {
@@ -693,7 +1053,7 @@ function speakWristbandReminder(
     },
     {
       voice: 'es-CO-SalomeNeural',
-      rate: '+15%',
+      rate: '+12%',
       onStart: () => {
         callbacks?.onStart?.();
       },
@@ -731,6 +1091,11 @@ function hangUp() {
  * Resetea procesos internos sin alterar flags
  */
 function resetCallState() {
+  currentSpeakGeneration++;
+  isProcessingTurn = false;
+  lastProcessedSpeech = '';
+  lastProcessedAt = 0;
+
   edgeTtsService.stop();
   if (currentUtterance) {
     currentUtterance.onstart = null;
@@ -753,6 +1118,10 @@ function resetCallState() {
   if (silenceTimer) {
     clearTimeout(silenceTimer);
     silenceTimer = null;
+  }
+  if (pendingListenDelayTimer) {
+    clearTimeout(pendingListenDelayTimer);
+    pendingListenDelayTimer = null;
   }
   finalTranscriptBuffer = '';
 
@@ -784,6 +1153,8 @@ function endCall() {
   console.log('[VoiceCall] Finalizando llamada y limpiando recursos...');
   isCallActive.value = false;
   isCallModalOpen.value = false;
+  isWristbandSurveyActive.value = false;
+  wristbandSurveyStep.value = 'idle';
   callStatus.value = 'idle';
   audioLevel.value = 0;
   errorMessage.value = null;
@@ -823,6 +1194,9 @@ export function useVoiceCall() {
     openCall,
     startCall,
     startWristbandCall,
+    startWristbandSurveyCall,
+    isWristbandSurveyActive,
+    wristbandSurveyStep,
     speakWristbandReminder,
     stopWristbandSpeech,
     hangUp,

@@ -1,7 +1,7 @@
 import { ref, reactive } from 'vue'
 import type { Pauta, PautaConCheckin, TipoAlarmaPauta } from '../types/database.types'
 
-const STORAGE_KEY_PAUTA_ALARMS = 'tech_touch_pauta_alarms_v1'
+const STORAGE_KEY_PAUTA_ALARMS = 'precare_pauta_alarms_v1'
 
 export interface PautaAlarmConfig {
   pautaId: string
@@ -9,10 +9,13 @@ export interface PautaAlarmConfig {
   hora_alarma: string // "HH:mm" (24h), ej. "06:00"
   intervalo_minutos: number // ej. 60 (cada 1 hora), 30, 120
   alarma_activa: boolean
-  es_ayuno_continuo: boolean // Si es ayuno, puede seguir recordando cada hora incluso tras iniciar el ayuno
+  es_ayuno_continuo: boolean // retrocompatibilidad
+  es_vigilancia_continua: boolean // True si es ayuno u otra condición continua que no se finaliza con un solo check
   categoria_detectada: 'medicamento' | 'ayuno' | 'ducha_higiene' | 'admision_hito'
   nextTriggerMs: number // Timestamp del próximo disparo para recordatorios periódicos
+  uncheckBeforeMs: number // Timestamp exacto en el que el check se desmarca antes de que suene la alarma
   lastTriggeredKey?: string // Para evitar disparar dos veces en el mismo minuto
+  lastConfirmedMs?: number // Timestamp de la última confirmación del ciclo
 }
 
 export interface ActiveRingingAlarm {
@@ -57,9 +60,20 @@ function persistAlarms() {
 }
 
 /**
+ * Calcula con cuánta anticipación debe desmarcarse automáticamente una pauta de ayuno
+ * antes de que vuelva a sonar la siguiente alarma recurrente.
+ */
+export function computeUncheckLeadMs(intervalMinutes: number): number {
+  if (intervalMinutes <= 15) return 2 * 60 * 1000 // 2 minutos antes
+  if (intervalMinutes <= 30) return 3 * 60 * 1000 // 3 minutos antes
+  return 5 * 60 * 1000 // 5 minutos antes para 1 hora (60 min) o más
+}
+
+/**
  * Infiere inteligentemente el tipo de alarma según lo que el paciente debe hacer:
  * - Medicamento / Fármaco / Glucometría / Ingreso -> Alarma a HORA EXACTA (HH:mm)
- * - Ayuno / Ducharse con jabón / Preparación -> RECORDATORIO PERIÓDICO CADA HORA (60 min)
+ * - Ayuno / Conducta Continua -> RECORDATORIO PERIÓDICO CADA HORA (no se finaliza para siempre; se desmarca antes de sonar)
+ * - Ducharse con jabón / Higiene -> Recordatorio periódico o según pauta
  */
 export function inferDefaultAlarmConfig(pauta: Pauta): PautaAlarmConfig {
   const texto = `${pauta.titulo} ${pauta.descripcion}`.toLowerCase()
@@ -87,7 +101,16 @@ export function inferDefaultAlarmConfig(pauta: Pauta): PautaAlarmConfig {
     texto.includes('líquido') ||
     texto.includes('liquido') ||
     texto.includes('agua') ||
-    texto.includes('dieta')
+    texto.includes('dieta') ||
+    texto.includes('no comer') ||
+    texto.includes('no ingerir') ||
+    texto.includes('sin alimentos')
+
+  // Regla Clínica: El ayuno o abstinencia es un proceso continuo que no se puede "marcar como listo" definitivamente
+  const esVigilanciaContinua =
+    pauta.es_vigilancia_continua !== undefined
+      ? Boolean(pauta.es_vigilancia_continua)
+      : esAyuno || texto.includes('abstinencia') || (pauta.tipo_alarma === 'recordatorio_periodico' && esAyuno)
 
   const esDuchaOHigiene =
     texto.includes('ducha') ||
@@ -113,28 +136,48 @@ export function inferDefaultAlarmConfig(pauta: Pauta): PautaAlarmConfig {
     }
   }
 
+  // 1. Si es vigilancia continua (Ayuno): OBLIGATORIO recordatorio periódico cada hora
+  if (esVigilanciaContinua) {
+    const intervalo = pauta.intervalo_minutos || 60
+    const nextTrigger = Date.now() + intervalo * 60 * 1000
+    return {
+      pautaId: pauta.id,
+      tipo_alarma: 'recordatorio_periodico',
+      hora_alarma: defaultHora,
+      intervalo_minutos: intervalo,
+      alarma_activa: pauta.alarma_activa ?? true,
+      es_ayuno_continuo: true,
+      es_vigilancia_continua: true,
+      categoria_detectada: 'ayuno',
+      nextTriggerMs: nextTrigger,
+      uncheckBeforeMs: nextTrigger - computeUncheckLeadMs(intervalo),
+    }
+  }
+
   if (pauta.tipo_alarma) {
     const intervalo = pauta.intervalo_minutos || 60
+    const nextTrigger = Date.now() + intervalo * 60 * 1000
     return {
       pautaId: pauta.id,
       tipo_alarma: pauta.tipo_alarma,
       hora_alarma: defaultHora,
       intervalo_minutos: intervalo,
       alarma_activa: pauta.alarma_activa ?? true,
-      es_ayuno_continuo: esAyuno,
+      es_ayuno_continuo: false,
+      es_vigilancia_continua: false,
       categoria_detectada: esMedicamento
         ? 'medicamento'
-        : esAyuno
-        ? 'ayuno'
         : esDuchaOHigiene
         ? 'ducha_higiene'
         : 'admision_hito',
-      nextTriggerMs: Date.now() + intervalo * 60 * 1000,
+      nextTriggerMs: nextTrigger,
+      uncheckBeforeMs: nextTrigger - computeUncheckLeadMs(intervalo),
     }
   }
 
   // Si es tomar/suspender medicamento específico -> Alarma a Hora Exacta
   if (esMedicamento) {
+    const nextTrigger = Date.now() + 60 * 60 * 1000
     return {
       pautaId: pauta.id,
       tipo_alarma: 'hora_exacta',
@@ -142,27 +185,33 @@ export function inferDefaultAlarmConfig(pauta: Pauta): PautaAlarmConfig {
       intervalo_minutos: 60,
       alarma_activa: true,
       es_ayuno_continuo: false,
+      es_vigilancia_continua: false,
       categoria_detectada: 'medicamento',
-      nextTriggerMs: Date.now() + 60 * 60 * 1000,
+      nextTriggerMs: nextTrigger,
+      uncheckBeforeMs: nextTrigger - computeUncheckLeadMs(60),
     }
   }
 
-  // Si es Ayuno o Ducharse -> Recordatorio Periódico cada 1 hora (60 min)
-  if (esAyuno || esDuchaOHigiene) {
-    const intervalo = 60 // Cada 1 hora por defecto
+  // Si es Ducharse -> Recordatorio Periódico cada 1 hora (60 min)
+  if (esDuchaOHigiene) {
+    const intervalo = 60
+    const nextTrigger = Date.now() + intervalo * 60 * 1000
     return {
       pautaId: pauta.id,
       tipo_alarma: 'recordatorio_periodico',
       hora_alarma: defaultHora,
       intervalo_minutos: intervalo,
       alarma_activa: true,
-      es_ayuno_continuo: esAyuno,
-      categoria_detectada: esAyuno ? 'ayuno' : 'ducha_higiene',
-      nextTriggerMs: Date.now() + intervalo * 60 * 1000,
+      es_ayuno_continuo: false,
+      es_vigilancia_continua: false,
+      categoria_detectada: 'ducha_higiene',
+      nextTriggerMs: nextTrigger,
+      uncheckBeforeMs: nextTrigger - computeUncheckLeadMs(intervalo),
     }
   }
 
   // Por defecto (ej. Presentación en Admisión) -> Hora Exacta según fecha_limite
+  const nextTrigger = Date.now() + 60 * 60 * 1000
   return {
     pautaId: pauta.id,
     tipo_alarma: 'hora_exacta',
@@ -170,8 +219,10 @@ export function inferDefaultAlarmConfig(pauta: Pauta): PautaAlarmConfig {
     intervalo_minutos: 60,
     alarma_activa: true,
     es_ayuno_continuo: false,
+    es_vigilancia_continua: false,
     categoria_detectada: 'admision_hito',
-    nextTriggerMs: Date.now() + 60 * 60 * 1000,
+    nextTriggerMs: nextTrigger,
+    uncheckBeforeMs: nextTrigger - computeUncheckLeadMs(60),
   }
 }
 
@@ -275,7 +326,7 @@ export function usePautaAlarms() {
     if (!cfg.alarma_activa) return 'Alarma silenciada por el usuario'
 
     const isDone = pauta.checkin?.estado === 'completado'
-    if (isDone && !cfg.es_ayuno_continuo) {
+    if (isDone && !cfg.es_vigilancia_continua) {
       return 'Actividad cumplida • Alarma finalizada'
     }
 
@@ -300,6 +351,22 @@ export function usePautaAlarms() {
     const diffSec = Math.max(0, Math.floor((cfg.nextTriggerMs - currentTickMs.value) / 1000))
     const m = Math.floor(diffSec / 60)
     const s = diffSec % 60
+
+    if (cfg.es_vigilancia_continua && isDone) {
+      const uncheckDiffSec = Math.max(0, Math.floor((cfg.uncheckBeforeMs - currentTickMs.value) / 1000))
+      const uncheckM = Math.floor(uncheckDiffSec / 60)
+      const uncheckS = uncheckDiffSec % 60
+      if (m >= 60) {
+        const h = Math.floor(m / 60)
+        const remM = m % 60
+        return `Próxima alarma en ${h}h ${remM}m (se desmarca en ${uncheckM}m)`
+      }
+      if (uncheckM > 0) {
+        return `Próxima alarma en ${String(m).padStart(2, '0')}m (se desmarca en ${uncheckM}m)`
+      }
+      return `Próxima alarma en ${String(m).padStart(2, '0')}m (se desmarca en ${uncheckS}s)`
+    }
+
     if (m >= 60) {
       const h = Math.floor(m / 60)
       const remM = m % 60
@@ -311,9 +378,23 @@ export function usePautaAlarms() {
   /**
    * Dispara inmediatamente una alarma (por horario cumplido o al presionar "Probar Alarma")
    */
-  function triggerAlarmNow(pauta: PautaConCheckin, customMotivo?: string) {
+  function triggerAlarmNow(
+    pauta: PautaConCheckin,
+    customMotivo?: string,
+    onAutoUncheck?: (pautaId: string) => void
+  ) {
     const cfg = getOrCreateConfig(pauta)
     stopChimeLoop()
+
+    // Si es vigilancia continua (ayuno) y estaba marcada como completada, se desmarca de inmediato al sonar
+    if (cfg.es_vigilancia_continua && pauta.checkin?.estado === 'completado') {
+      if (onAutoUncheck) {
+        onAutoUncheck(pauta.id)
+      } else if (pauta.checkin) {
+        pauta.checkin.estado = 'pendiente'
+        pauta.checkin.fecha_respuesta = null
+      }
+    }
 
     const nowStr = new Date().toLocaleTimeString('es-CO', {
       hour: '2-digit',
@@ -323,8 +404,8 @@ export function usePautaAlarms() {
     const motivoDefault =
       cfg.tipo_alarma === 'hora_exacta'
         ? `⏰ Alarma de Hora Exacta (${cfg.hora_alarma}) — Medicamento / Hito Puntual`
-        : cfg.categoria_detectada === 'ayuno'
-        ? `🔁 Recordatorio Horario de Ayuno (Cada ${cfg.intervalo_minutos} min) — No ingerir alimentos ni líquidos`
+        : cfg.es_vigilancia_continua
+        ? `🔁 Alarma Horaria de Ayuno (Cada ${cfg.intervalo_minutos} min) — Recordatorio no finalizable, confirmar cumplimiento actual`
         : `🔁 Recordatorio Periódico (Cada ${cfg.intervalo_minutos} min) — Pendiente por realizar`
 
     ringingAlarm.value = {
@@ -347,13 +428,20 @@ export function usePautaAlarms() {
     }, 4500)
   }
 
-  function dismissActiveAlarm() {
+  function dismissActiveAlarm(onConfirmPauta?: (pautaId: string) => void) {
     stopChimeLoop()
     if (ringingAlarm.value) {
       const cfg = ringingAlarm.value.config
-      if (cfg.tipo_alarma === 'recordatorio_periodico') {
-        cfg.nextTriggerMs = Date.now() + cfg.intervalo_minutos * 60 * 1000
+      const targetPauta = ringingAlarm.value.pauta
+      if (cfg.tipo_alarma === 'recordatorio_periodico' || cfg.es_vigilancia_continua) {
+        const intervalMs = (cfg.intervalo_minutos || 60) * 60 * 1000
+        cfg.nextTriggerMs = Date.now() + intervalMs
+        cfg.uncheckBeforeMs = cfg.nextTriggerMs - computeUncheckLeadMs(cfg.intervalo_minutos || 60)
+        cfg.lastConfirmedMs = Date.now()
         persistAlarms()
+      }
+      if (onConfirmPauta) {
+        onConfirmPauta(targetPauta.id)
       }
     }
     ringingAlarm.value = null
@@ -364,6 +452,7 @@ export function usePautaAlarms() {
     if (ringingAlarm.value) {
       const cfg = ringingAlarm.value.config
       cfg.nextTriggerMs = Date.now() + minutes * 60 * 1000
+      cfg.uncheckBeforeMs = cfg.nextTriggerMs - computeUncheckLeadMs(minutes)
       if (cfg.tipo_alarma === 'hora_exacta') {
         const snoozeDate = new Date(Date.now() + minutes * 60 * 1000)
         cfg.hora_alarma = `${String(snoozeDate.getHours()).padStart(2, '0')}:${String(
@@ -378,14 +467,42 @@ export function usePautaAlarms() {
   /**
    * Inicia el reloj vigilante de alarmas sobre la lista de pautas del paciente activo
    */
-  function startAlarmWatcher(getPautas: () => PautaConCheckin[]) {
+  function startAlarmWatcher(
+    getPautas: () => PautaConCheckin[],
+    onAutoUncheck?: (pautaId: string) => void
+  ) {
     if (tickerIntervalId) clearInterval(tickerIntervalId)
 
     tickerIntervalId = setInterval(() => {
       currentTickMs.value = Date.now()
+      const nowMs = currentTickMs.value
+      const pautas = getPautas()
+
+      // =========================================================================
+      // REGLA CLÍNICA: Pautas de vigilancia continua (ej. Ayuno) no son definitivas
+      // Se desmarcan automáticamente antes de que vuelva a sonar la siguiente alarma
+      // =========================================================================
+      for (const p of pautas) {
+        const cfg = getOrCreateConfig(p)
+        if (!cfg.alarma_activa || !cfg.es_vigilancia_continua) continue
+
+        if (p.checkin?.estado === 'completado') {
+          if (nowMs >= cfg.uncheckBeforeMs || nowMs >= cfg.nextTriggerMs) {
+            console.log(
+              `[usePautaAlarms] Auto-desmarcando ${p.titulo} antes de la próxima alarma periódica (faltan <5 min)`
+            )
+            if (onAutoUncheck) {
+              onAutoUncheck(p.id)
+            } else if (p.checkin) {
+              p.checkin.estado = 'pendiente'
+              p.checkin.fecha_respuesta = null
+            }
+          }
+        }
+      }
+
       if (ringingAlarm.value) return // Ya hay una alarma sonando en pantalla
 
-      const pautas = getPautas()
       const now = new Date()
       const hhmmNow = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const minuteKey = `${now.toDateString()}-${hhmmNow}`
@@ -395,21 +512,28 @@ export function usePautaAlarms() {
         if (!cfg.alarma_activa) continue
 
         const isCompleted = p.checkin?.estado === 'completado'
-        // Si ya fue completada y no es un recordatorio continuo de ayuno, no sonar
-        if (isCompleted && !cfg.es_ayuno_continuo) continue
+        // Si ya fue completada y no es vigilancia continua, no sonar
+        if (isCompleted && !cfg.es_vigilancia_continua) continue
 
         if (cfg.tipo_alarma === 'hora_exacta') {
           if (cfg.hora_alarma === hhmmNow && cfg.lastTriggeredKey !== minuteKey && now.getSeconds() < 10) {
             cfg.lastTriggeredKey = minuteKey
             persistAlarms()
-            triggerAlarmNow(p)
+            triggerAlarmNow(p, undefined, onAutoUncheck)
             break
           }
         } else if (cfg.tipo_alarma === 'recordatorio_periodico') {
-          if (currentTickMs.value >= cfg.nextTriggerMs) {
-            cfg.nextTriggerMs = currentTickMs.value + cfg.intervalo_minutos * 60 * 1000
+          if (nowMs >= cfg.nextTriggerMs) {
+            const intervalMs = (cfg.intervalo_minutos || 60) * 60 * 1000
+            cfg.nextTriggerMs = nowMs + intervalMs
+            cfg.uncheckBeforeMs = cfg.nextTriggerMs - computeUncheckLeadMs(cfg.intervalo_minutos || 60)
             persistAlarms()
-            triggerAlarmNow(p)
+
+            if (cfg.es_vigilancia_continua && isCompleted && onAutoUncheck) {
+              onAutoUncheck(p.id)
+            }
+
+            triggerAlarmNow(p, undefined, onAutoUncheck)
             break
           }
         }

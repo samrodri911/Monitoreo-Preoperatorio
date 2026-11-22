@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import type { CirugiaConDetalle } from '../../types/database.types';
 import SemaforoBadge from './SemaforoBadge.vue';
-import { Clock, Phone, User, ChevronRight, ShieldAlert, KeyRound, Stethoscope, Sparkles } from 'lucide-vue-next';
+import { Clock, Phone, User, ChevronRight, ShieldAlert, KeyRound, Stethoscope, Sparkles, HeartPulse } from 'lucide-vue-next';
 
 const props = defineProps<{
   cirugia: CirugiaConDetalle;
@@ -25,6 +25,13 @@ const pautasCriticasCompletadas = computed(() => props.cirugia.pautas.filter(p =
 const alertaActiva = computed(() => {
   return props.cirugia.alertas.find(a => !a.atendida && (a.nivel === 'rojo' || a.nivel === 'amarillo'));
 });
+
+function formatOrigenAnsiedad(origen?: string) {
+  if (origen === 'llamada_ia') return 'Llamada con IA Sofi';
+  if (origen === 'chat_ia') return 'Chat con IA Sofi';
+  if (origen === 'encuesta_pulsera') return 'Encuesta Pulsera (Voz)';
+  return 'Encuesta Rápida (Web)';
+}
 </script>
 
 <template>
@@ -138,6 +145,58 @@ const alertaActiva = computed(() => {
           <div>
             <strong class="text-teal-800">Directriz para Sofi:</strong> {{ cirugia.notas_medicas }}
           </div>
+        </div>
+
+        <!-- Reporte de Ansiedad y Estado Emocional (Llamada IA o Encuesta) -->
+        <div
+          v-if="cirugia.ultimoReporteAnsiedad"
+          class="p-3.5 rounded-xl border text-xs space-y-1.5"
+          :class="[
+            cirugia.ultimoReporteAnsiedad.es_urgente || cirugia.ultimoReporteAnsiedad.riesgo_cancelacion
+              ? 'bg-rose-50 border-rose-300 text-rose-950'
+              : cirugia.ultimoReporteAnsiedad.nivel === 'moderada'
+              ? 'bg-amber-50 border-amber-300 text-amber-950'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-950',
+          ]"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="inline-flex items-center gap-1.5 font-extrabold uppercase tracking-wider text-[11px]">
+              <HeartPulse
+                class="w-4 h-4"
+                :class="
+                  cirugia.ultimoReporteAnsiedad.es_urgente || cirugia.ultimoReporteAnsiedad.riesgo_cancelacion
+                    ? 'text-rose-600 animate-pulse'
+                    : cirugia.ultimoReporteAnsiedad.nivel === 'moderada'
+                    ? 'text-amber-600'
+                    : 'text-emerald-600'
+                "
+              />
+              <span>
+                Ansiedad {{ cirugia.ultimoReporteAnsiedad.nivel.toUpperCase() }} ({{ cirugia.ultimoReporteAnsiedad.puntaje }}/10)
+              </span>
+              <span
+                v-if="cirugia.ultimoReporteAnsiedad.riesgo_cancelacion"
+                class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black animate-pulse"
+              >
+                🚨 URGENTE: RIESGO CANCELACIÓN
+              </span>
+            </span>
+            <span class="px-2 py-0.5 rounded-md bg-white/80 border border-slate-200 font-bold text-[10px] text-slate-700">
+              Origen: {{ formatOrigenAnsiedad(cirugia.ultimoReporteAnsiedad.origen) }}
+            </span>
+          </div>
+          <p class="font-bold text-slate-900">
+            {{ cirugia.ultimoReporteAnsiedad.estado_animo }}
+            <span v-if="cirugia.ultimoReporteAnsiedad.preocupacion_principal" class="font-medium text-slate-600">
+              • Inquietud: {{ cirugia.ultimoReporteAnsiedad.preocupacion_principal }}
+            </span>
+          </p>
+          <p v-if="cirugia.ultimoReporteAnsiedad.frase_detectada" class="italic text-slate-700">
+            "{{ cirugia.ultimoReporteAnsiedad.frase_detectada }}"
+          </p>
+          <p v-if="cirugia.ultimoReporteAnsiedad.comentario_paciente" class="text-slate-700">
+            Nota del paciente: "{{ cirugia.ultimoReporteAnsiedad.comentario_paciente }}"
+          </p>
         </div>
 
         <!-- Alerta de Riesgo Inmediato -->

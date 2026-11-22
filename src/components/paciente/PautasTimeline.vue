@@ -36,7 +36,10 @@ const {
 let stopWatcher: (() => void) | null = null
 
 onMounted(() => {
-  stopWatcher = startAlarmWatcher(() => props.pautas)
+  stopWatcher = startAlarmWatcher(
+    () => props.pautas,
+    (pautaId) => emit('toggleCheckin', pautaId)
+  )
 })
 
 onUnmounted(() => {
@@ -121,8 +124,11 @@ function confirmarCheckinDesdeAlarma() {
           <template v-if="ringingAlarm.config.tipo_alarma === 'hora_exacta'">
             💊 <strong>Alarma de Hora Fija ({{ ringingAlarm.config.hora_alarma }}):</strong> Programada a esta hora específica para tu medicación o hito puntual.
           </template>
+          <template v-else-if="ringingAlarm.config.es_vigilancia_continua">
+            🔁 <strong>Recordatorio Recurrente de Ayuno (Cada {{ ringingAlarm.config.intervalo_minutos }} min):</strong> El ayuno no se finaliza con un solo check. Al apagar la alarma confirmas el cumplimiento de esta hora y el check se volverá a desmarcar automáticamente antes de la siguiente alarma para volver a avisarte.
+          </template>
           <template v-else>
-            🔁 <strong>Recordatorio Periódico (Cada {{ ringingAlarm.config.intervalo_minutos }} min):</strong> Como esta actividad es continua (ayuno o preparación), te avisamos periódicamente para evitar olvidos.
+            🔁 <strong>Recordatorio Periódico (Cada {{ ringingAlarm.config.intervalo_minutos }} min):</strong> Te avisamos periódicamente para evitar olvidos antes de la cirugía.
           </template>
         </p>
 
@@ -139,7 +145,7 @@ function confirmarCheckinDesdeAlarma() {
 
           <button
             type="button"
-            @click="dismissActiveAlarm"
+            @click="dismissActiveAlarm()"
             class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <BellOff class="w-4 h-4" />
@@ -152,7 +158,13 @@ function confirmarCheckinDesdeAlarma() {
             class="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 cursor-pointer"
           >
             <CheckCircle2 class="w-4 h-4" />
-            <span>¡Ya lo hice! Marcar Cumplido</span>
+            <span>
+              {{
+                ringingAlarm.config.es_vigilancia_continua
+                  ? 'Apagar alarma y confirmar ayuno actual'
+                  : '¡Ya lo hice! Marcar Cumplido'
+              }}
+            </span>
           </button>
         </div>
       </div>

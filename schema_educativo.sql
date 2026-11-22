@@ -1,5 +1,5 @@
 -- ==============================================================================
--- ECOSISTEMA PREOPERATORIO "TECH-AND-TOUCH" (FASE 1: MVP BASE)
+-- ECOSISTEMA PREOPERATORIO "PRECARE" (FASE 1: MVP BASE)
 -- MÓDULO EDUCATIVO PREOPERATORIO (Requerimiento de Diseño RD1)
 -- Script complementario: schema_educativo.sql
 -- ==============================================================================
@@ -48,7 +48,7 @@ BEGIN
     SELECT id INTO v_cirugia_elena_id FROM cirugias WHERE tipo_cirugia = 'Artroplastia Total de Cadera' LIMIT 1;
 
     -- --------------------------------------------------------------------------
-    -- MATERIALES PARA COLECISTECTOMÍA LAPAROSCÓPICA (Caso Carlos Mendoza)
+    -- MATERIALES PARA COLECISTECTOMÍA LAPAROSCÓPICA (Caso Gerardo Andrés Martínez)
     -- --------------------------------------------------------------------------
     
     -- Recurso 1: Video Didáctico Embebible (Qué esperar de la cirugía y anestesia)
@@ -180,7 +180,7 @@ Cuando estás bajo anestesia, los reflejos normales que protegen tu vía respira
     );
 
     -- --------------------------------------------------------------------------
-    -- MATERIAL EXTRA: Artroplastia Total de Cadera (Caso Elena Restrepo)
+    -- MATERIAL EXTRA: Artroplastia Total de Cadera (Caso Luisa Castro)
     -- --------------------------------------------------------------------------
     INSERT INTO materiales_educativos (
         cirugia_id, tipo_cirugia, categoria, tipo_recurso, titulo, descripcion_corta, 

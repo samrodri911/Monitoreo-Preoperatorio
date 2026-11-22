@@ -1,5 +1,5 @@
 -- ==============================================================================
--- ECOSISTEMA PREOPERATORIO "TECH-AND-TOUCH"
+-- ECOSISTEMA PREOPERATORIO "PRECARE"
 -- ACTUALIZACIÓN DE CONTENIDO EDUCATIVO Y MULTIMEDIA PARA REEMPLAZO DE CADERA
 -- Procedimiento: Artroplastia Total de Cadera (Reemplazo con Prótesis)
 -- Script: update_cadera.sql
@@ -24,16 +24,17 @@ ALTER TABLE materiales_educativos
     ADD CONSTRAINT materiales_educativos_categoria_check 
     CHECK (categoria IN ('que_esperar', 'preparacion_fisica', 'tecnica_quirurgica', 'cuidados_generales', 'guia_maleta', 'recorrido', 'faq'));
 
--- 3. TRANSACCIÓN DE ACTUALIZACIÓN DE DATOS (CASO ELENA RESTREPO / CADERA)
+-- 3. TRANSACCIÓN DE ACTUALIZACIÓN DE DATOS (CASO LUISA CASTRO / CADERA)
 DO $$
 DECLARE
     v_paciente_id UUID;
     v_cirugia_id UUID;
 BEGIN
-    -- Localizar paciente Elena Restrepo o el ID fijo demo B
+    -- Localizar paciente Luisa Castro (o Elena Restrepo) o el ID fijo demo B
     SELECT id INTO v_paciente_id 
     FROM pacientes 
     WHERE id = '33333333-3333-4333-b333-333333333333' 
+       OR nombre_completo ILIKE '%Luisa%Castro%'
        OR nombre_completo ILIKE '%Elena%Restrepo%' 
     LIMIT 1;
 

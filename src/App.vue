@@ -9,7 +9,7 @@ import HeaderNav from './components/common/HeaderNav.vue';
       <router-view />
     </main>
     <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
-      <p>Ecosistema Phygital Inclusivo "Tech-and-Touch" • Preparación Prequirúrgica Segura</p>
+      <p>PreCare — Ecosistema Phygital Inclusivo • Preparación Prequirúrgica Segura</p>
       <p class="mt-1 text-slate-400">Diseñado bajo Metodología TRIZ y Estándares WCAG 2.1 AA</p>
     </footer>
   </div>

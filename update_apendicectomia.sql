@@ -1,5 +1,5 @@
 -- ==============================================================================
--- ECOSISTEMA PREOPERATORIO "TECH-AND-TOUCH"
+-- ECOSISTEMA PREOPERATORIO "PRECARE"
 -- ACTUALIZACIÓN A APENDICECTOMÍA LAPAROSCÓPICA (CIRUGÍA DE APÉNDICE POR MÍNIMA INVASIÓN)
 -- Script: update_apendicectomia.sql
 -- ==============================================================================
@@ -23,17 +23,18 @@ ALTER TABLE materiales_educativos
     ADD CONSTRAINT materiales_educativos_categoria_check 
     CHECK (categoria IN ('que_esperar', 'preparacion_fisica', 'tecnica_quirurgica', 'cuidados_generales', 'guia_maleta', 'recorrido', 'faq'));
 
--- 3. TRANSACCIÓN DE ACTUALIZACIÓN DE DATOS (CASO CARLOS MENDOZA / APENDICECTOMÍA)
+-- 3. TRANSACCIÓN DE ACTUALIZACIÓN DE DATOS (CASO GERARDO ANDRÉS MARTÍNEZ / APENDICECTOMÍA)
 DO $$
 DECLARE
     v_paciente_id UUID;
     v_cirugia_id UUID;
     v_fecha_cirugia TIMESTAMPTZ;
 BEGIN
-    -- Localizar al paciente de prueba Carlos Mendoza o el ID fijo demo
+    -- Localizar al paciente de prueba Gerardo Andrés Martínez (o Carlos Mendoza) o el ID fijo demo
     SELECT id INTO v_paciente_id 
     FROM pacientes 
     WHERE id = '11111111-1111-4111-a111-111111111111' 
+       OR nombre_completo ILIKE '%Gerardo%Martínez%'
        OR nombre_completo ILIKE '%Carlos%Mendoza%' 
     LIMIT 1;
 

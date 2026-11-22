@@ -33,6 +33,7 @@ const {
 
 const alarmConfig = computed(() => getOrCreateConfig(props.pauta))
 const countdownText = computed(() => getCountdownLabel(props.pauta))
+const isContinuous = computed(() => Boolean(alarmConfig.value.es_vigilancia_continua))
 
 const isCompleted = () => props.pauta.checkin?.estado === 'completado'
 
@@ -86,7 +87,9 @@ function handleChangeIntervalo(event: Event) {
     class="p-5 rounded-2xl border transition-all duration-200 space-y-4"
     :class="[
       isCompleted()
-        ? 'bg-emerald-50/70 border-emerald-300 shadow-sm'
+        ? isContinuous
+          ? 'bg-teal-50/70 border-teal-300 shadow-sm'
+          : 'bg-emerald-50/70 border-emerald-300 shadow-sm'
         : pauta.es_critica
         ? 'bg-white border-amber-300 shadow-sm hover:border-amber-400'
         : 'bg-white border-slate-200 shadow-sm hover:border-slate-300',
@@ -117,29 +120,39 @@ function handleChangeIntervalo(event: Event) {
             Recomendación de Preparación
           </span>
 
-          <!-- Naturaleza de la Actividad Detectada -->
+          <!-- Naturaleza de la Actividad: Vigilancia Continua vs Fármaco puntual -->
           <span
-            v-if="alarmConfig.categoria_detectada === 'medicamento'"
+            v-if="isContinuous"
+            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-100 text-teal-900 border border-teal-300"
+          >
+            <Repeat class="w-3.5 h-3.5 text-teal-700" />
+            Vigilancia Continua de Ayuno (Cada {{ alarmConfig.intervalo_minutos }}m)
+          </span>
+          <span
+            v-else-if="alarmConfig.categoria_detectada === 'medicamento'"
             class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200"
           >
             <Pill class="w-3.5 h-3.5 text-indigo-600" />
             Fármaco / Hora Puntual
           </span>
           <span
-            v-else-if="alarmConfig.categoria_detectada === 'ayuno' || alarmConfig.categoria_detectada === 'ducha_higiene'"
+            v-else-if="alarmConfig.categoria_detectada === 'ducha_higiene'"
             class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200"
           >
             <Droplets class="w-3.5 h-3.5 text-teal-600" />
-            {{
-              alarmConfig.categoria_detectada === 'ayuno'
-                ? 'Vigilancia Continua de Ayuno'
-                : 'Higiene / Alistamiento'
-            }}
+            Higiene / Alistamiento
           </span>
 
-          <!-- Badge de Completada -->
+          <!-- Badge de Estado de Cumplimiento -->
           <span
-            v-if="isCompleted()"
+            v-if="isCompleted() && isContinuous"
+            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-200 text-teal-950 border border-teal-300"
+          >
+            <ShieldCheck class="w-3.5 h-3.5 text-teal-800" />
+            Confirmado Esta Hora
+          </span>
+          <span
+            v-else-if="isCompleted()"
             class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800"
           >
             <ShieldCheck class="w-3.5 h-3.5 text-emerald-600" />
@@ -150,7 +163,7 @@ function handleChangeIntervalo(event: Event) {
         <!-- Título -->
         <h3
           class="text-lg font-bold tracking-tight text-slate-900 transition-colors"
-          :class="{ 'line-through text-slate-500': isCompleted() }"
+          :class="{ 'line-through text-slate-500': isCompleted() && !isContinuous }"
         >
           {{ pauta.titulo }}
         </h3>
@@ -161,11 +174,24 @@ function handleChangeIntervalo(event: Event) {
         </p>
 
         <!-- Información de respuesta u observaciones -->
-        <div v-if="pauta.checkin?.fecha_respuesta" class="text-xs text-emerald-700 font-medium pt-1">
-          ✓ Confirmado el {{ formatHora(pauta.checkin.fecha_respuesta) }}
-          <span v-if="pauta.checkin?.observaciones" class="block text-slate-500 mt-0.5">
-            Nota: "{{ pauta.checkin.observaciones }}"
-          </span>
+        <div v-if="pauta.checkin?.fecha_respuesta" class="text-xs pt-1">
+          <template v-if="isContinuous">
+            <div class="text-teal-900 font-bold flex items-center gap-1.5">
+              <Check class="w-3.5 h-3.5 text-teal-700" />
+              Ayuno verificado esta hora el {{ formatHora(pauta.checkin.fecha_respuesta) }}
+            </div>
+            <p class="text-slate-500 text-[11px] mt-0.5 leading-relaxed">
+              ℹ️ El ayuno no es algo que se termine con un solo check: la alarma suena cada hora y se desmarcará automáticamente antes de la siguiente alarma para verificar que sigas en ayuno.
+            </p>
+          </template>
+          <template v-else>
+            <div class="text-emerald-700 font-medium">
+              ✓ Confirmado el {{ formatHora(pauta.checkin.fecha_respuesta) }}
+              <span v-if="pauta.checkin?.observaciones" class="block text-slate-500 mt-0.5">
+                Nota: "{{ pauta.checkin.observaciones }}"
+              </span>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -177,7 +203,11 @@ function handleChangeIntervalo(event: Event) {
           :disabled="disabled"
           class="w-full md:w-auto px-5 py-3.5 rounded-xl font-bold text-sm sm:text-base flex items-center justify-center gap-3 transition-all transform active:scale-95 focus-ring cursor-pointer"
           :class="[
-            isCompleted()
+            isContinuous
+              ? isCompleted()
+                ? 'bg-teal-700 hover:bg-teal-800 text-white shadow-md shadow-teal-700/20'
+                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/25'
+              : isCompleted()
               ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20'
               : 'bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/25',
           ]"
@@ -186,13 +216,23 @@ function handleChangeIntervalo(event: Event) {
             class="w-6 h-6 rounded-lg flex items-center justify-center border transition-colors"
             :class="
               isCompleted()
-                ? 'bg-white text-emerald-600 border-white'
+                ? 'bg-white text-teal-700 border-white'
                 : 'bg-white/20 border-white/40 text-transparent'
             "
           >
             <Check class="w-4 h-4 stroke-[3]" />
           </div>
-          <span>{{ isCompleted() ? 'Cumplido con éxito' : 'Marcar como Cumplido' }}</span>
+          <span>
+            {{
+              isContinuous
+                ? isCompleted()
+                  ? 'Ayuno Atendido (Ciclo Actual)'
+                  : 'Confirmar Ayuno de esta Hora'
+                : isCompleted()
+                ? 'Cumplido con éxito'
+                : 'Marcar como Cumplido'
+            }}
+          </span>
         </button>
       </div>
     </div>

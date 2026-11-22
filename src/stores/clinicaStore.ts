@@ -11,9 +11,11 @@ import type {
   Pauta,
   CatalogoCirugia,
   TipoAlarmaPauta,
+  ReporteAnsiedad,
 } from '../types/database.types';
 import { supabase, isSupabaseConfigured, mockRealtimeBus } from '../lib/supabase';
 import { usePautaAlarms } from '../composables/usePautaAlarms';
+import { useAnxietyMonitoring } from '../composables/useAnxietyMonitoring';
 import {
   initialMockPacientes,
   initialMockCirugias,
@@ -110,17 +112,41 @@ export const useClinicaStore = defineStore('clinica', () => {
     return itemCompleto;
   }
 
-  // Cálculo del semáforo clínico de un paciente
-  function calcularSemaforo(pautas: any[], alertasPaciente: Alerta[]): { semaforo: AlertaNivel; pendientesCriticas: number } {
+  const anxietyMonitoring = useAnxietyMonitoring();
+
+  // Cálculo del semáforo clínico de un paciente (pautas + alertas + monitoreo de ansiedad IA/encuesta)
+  function calcularSemaforo(
+    pautas: any[],
+    alertasPaciente: Alerta[],
+    reportesPaciente: ReporteAnsiedad[] = []
+  ): { semaforo: AlertaNivel; pendientesCriticas: number } {
     const now = new Date().getTime();
     let hayCriticaVencida = false;
     let hayCriticaProxima = false;
     let pendientesCriticas = 0;
 
-    // Alertas explícitas
+    // Alertas explícitas (Roja o Amarilla sin atender)
     const tieneAlertaRoja = alertasPaciente.some(a => a.nivel === 'rojo' && !a.atendida);
     if (tieneAlertaRoja) {
       hayCriticaVencida = true;
+    }
+    const tieneAlertaAmarilla = alertasPaciente.some(a => a.nivel === 'amarillo' && !a.atendida);
+    if (tieneAlertaAmarilla) {
+      hayCriticaProxima = true;
+    }
+
+    // Reportes de Ansiedad (Llamada IA o Encuesta)
+    const tieneAnsiedadUrgente = reportesPaciente.some(
+      r => !r.revisado_medico && (r.es_urgente || r.riesgo_cancelacion || r.nivel === 'alta')
+    );
+    if (tieneAnsiedadUrgente) {
+      hayCriticaVencida = true;
+    }
+    const tieneAnsiedadModerada = reportesPaciente.some(
+      r => !r.revisado_medico && r.nivel === 'moderada'
+    );
+    if (tieneAnsiedadModerada) {
+      hayCriticaProxima = true;
     }
 
     for (const p of pautas) {
@@ -152,9 +178,18 @@ export const useClinicaStore = defineStore('clinica', () => {
     return { total, verdes, amarillos, rojos };
   });
 
+  // Ordenar siempre por urgencia (ROJO primero, luego AMARILLO, luego VERDE)
   const cirugiasFiltradas = computed(() => {
-    if (filtroSemaforo.value === 'todos') return cirugias.value;
-    return cirugias.value.filter(c => c.semaforo === filtroSemaforo.value);
+    const prioridad: Record<AlertaNivel, number> = { rojo: 0, amarillo: 1, verde: 2 };
+    const base =
+      filtroSemaforo.value === 'todos'
+        ? [...cirugias.value]
+        : cirugias.value.filter(c => c.semaforo === filtroSemaforo.value);
+    return base.sort((a, b) => {
+      const diff = prioridad[a.semaforo] - prioridad[b.semaforo];
+      if (diff !== 0) return diff;
+      return new Date(a.fecha_programada).getTime() - new Date(b.fecha_programada).getTime();
+    });
   });
 
   // Cargar tablero clínico
@@ -162,6 +197,9 @@ export const useClinicaStore = defineStore('clinica', () => {
     isLoading.value = true;
     await cargarCatalogoCirugias();
     loadPersistedDynamicRecords();
+    anxietyMonitoring.loadPersistedAnxietyData();
+    const dynamicAnxAlerts = anxietyMonitoring.getDynamicAlerts();
+
     for (const ch of initialMockCheckins) {
       if (!localCheckins.value.some(existing => existing.id === ch.id)) {
         localCheckins.value.push(ch);
@@ -183,13 +221,28 @@ export const useClinicaStore = defineStore('clinica', () => {
 
         if (cirError) throw cirError;
 
+        const { data: alertasData } = await supabase
+          .from('alertas')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        const mergedAlertas: Alerta[] = [...(alertasData || [])];
+        for (const da of dynamicAnxAlerts) {
+          if (!mergedAlertas.some(a => a.id === da.id)) {
+            mergedAlertas.unshift(da);
+          }
+        }
+        alertas.value = mergedAlertas;
+
         cirugias.value = (cirData || []).map((c: any) => {
           const pautasNormalizadas = (c.pautas || []).map((p: any) => ({
             ...p,
             checkin: Array.isArray(p.checkins) && p.checkins.length > 0 ? p.checkins[0] : undefined,
           }));
 
-          const { semaforo, pendientesCriticas } = calcularSemaforo(pautasNormalizadas, c.alertas || []);
+          const alertasPac = mergedAlertas.filter(a => a.paciente_id === c.paciente_id);
+          const reportesPac = anxietyMonitoring.getReportesPorPaciente(c.paciente_id);
+          const { semaforo, pendientesCriticas } = calcularSemaforo(pautasNormalizadas, alertasPac, reportesPac);
           const enrichedCir = enrichCirugiaWithMeta(c);
           const enrichedPac = c.paciente ? enrichPacienteWithMeta(c.paciente) : c.paciente;
 
@@ -197,18 +250,13 @@ export const useClinicaStore = defineStore('clinica', () => {
             ...enrichedCir,
             paciente: enrichedPac,
             pautas: pautasNormalizadas,
-            alertas: c.alertas || [],
+            alertas: alertasPac,
+            reportesAnsiedad: reportesPac,
+            ultimoReporteAnsiedad: reportesPac[0] || null,
             semaforo,
             pautasCriticasPendientes: pendientesCriticas,
           };
         });
-
-        const { data: alertasData } = await supabase
-          .from('alertas')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (alertasData) alertas.value = alertasData;
       } catch (err) {
         console.warn('Error cargando datos de Supabase para clínica, usando Mock:', err);
         cargarDesdeMock();
@@ -222,7 +270,17 @@ export const useClinicaStore = defineStore('clinica', () => {
 
   function cargarDesdeMock() {
     loadPersistedDynamicRecords();
-    alertas.value = [...initialMockAlertas];
+    anxietyMonitoring.loadPersistedAnxietyData();
+    const dynamicAnxAlerts = anxietyMonitoring.getDynamicAlerts();
+    const combinedAlerts: Alerta[] = [...dynamicAnxAlerts];
+    for (const a of initialMockAlertas) {
+      if (!combinedAlerts.some(existing => existing.id === a.id)) {
+        combinedAlerts.push(a);
+      }
+    }
+    combinedAlerts.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    alertas.value = combinedAlerts;
+
     cirugias.value = initialMockCirugias.map(cir => {
       const enrichedCir = enrichCirugiaWithMeta(cir);
       const rawPac = initialMockPacientes.find(p => p.id === cir.paciente_id) || initialMockPacientes[0];
@@ -237,13 +295,16 @@ export const useClinicaStore = defineStore('clinica', () => {
       });
 
       const alertasCir = alertas.value.filter(a => a.paciente_id === paciente.id);
-      const { semaforo, pendientesCriticas } = calcularSemaforo(pautasConCheck, alertasCir);
+      const reportesPac = anxietyMonitoring.getReportesPorPaciente(paciente.id);
+      const { semaforo, pendientesCriticas } = calcularSemaforo(pautasConCheck, alertasCir, reportesPac);
 
       return {
         ...enrichedCir,
         paciente,
         pautas: pautasConCheck,
         alertas: alertasCir,
+        reportesAnsiedad: reportesPac,
+        ultimoReporteAnsiedad: reportesPac[0] || null,
         semaforo,
         pautasCriticasPendientes: pendientesCriticas,
       };
@@ -673,12 +734,21 @@ export const useClinicaStore = defineStore('clinica', () => {
     recalcularTodosLosSemaforos();
   }
 
+  function marcarReporteAnsiedadRevisado(reporteId: string) {
+    anxietyMonitoring.marcarReporteRevisado(reporteId);
+    recalcularTodosLosSemaforos();
+  }
+
   function recalcularTodosLosSemaforos() {
     cirugias.value = cirugias.value.map(c => {
       const alertasCir = alertas.value.filter(a => a.paciente_id === c.paciente_id);
-      const { semaforo, pendientesCriticas } = calcularSemaforo(c.pautas, alertasCir);
+      const reportesPac = anxietyMonitoring.getReportesPorPaciente(c.paciente_id);
+      const { semaforo, pendientesCriticas } = calcularSemaforo(c.pautas, alertasCir, reportesPac);
       return {
         ...c,
+        alertas: alertasCir,
+        reportesAnsiedad: reportesPac,
+        ultimoReporteAnsiedad: reportesPac[0] || null,
         semaforo,
         pautasCriticasPendientes: pendientesCriticas,
       };
@@ -687,6 +757,10 @@ export const useClinicaStore = defineStore('clinica', () => {
 
   // Suscripción Realtime para la clínica
   function iniciarSuscripcionRealtime() {
+    const unsubReportesAnsiedad = mockRealtimeBus.subscribe('reportes_ansiedad', () => {
+      recalcularTodosLosSemaforos();
+    });
+
     if (isSupabaseConfigured && supabase) {
       const channel = supabase
         .channel('clinica-realtime')
@@ -701,7 +775,17 @@ export const useClinicaStore = defineStore('clinica', () => {
         })
         .subscribe();
 
+      const unsubLocalAlertas = mockRealtimeBus.subscribe('alertas', payload => {
+        const nueva = payload.new as Alerta;
+        if (!alertas.value.some(a => a.id === nueva.id)) {
+          alertas.value.unshift(nueva);
+        }
+        recalcularTodosLosSemaforos();
+      });
+
       return () => {
+        unsubReportesAnsiedad();
+        unsubLocalAlertas();
         supabase?.removeChannel(channel);
       };
     } else {
@@ -739,6 +823,7 @@ export const useClinicaStore = defineStore('clinica', () => {
       });
 
       return () => {
+        unsubReportesAnsiedad();
         unsubCheckins();
         unsubAlertas();
         unsubCirugias();
@@ -750,6 +835,8 @@ export const useClinicaStore = defineStore('clinica', () => {
     cirugias,
     alertas,
     catalogoCirugias,
+    reportesAnsiedad: anxietyMonitoring.anxietyReports,
+    reportesUrgentesSinRevisar: anxietyMonitoring.reportesUrgentesSinRevisar,
     isLoading,
     isSaving,
     filtroSemaforo,
@@ -760,6 +847,7 @@ export const useClinicaStore = defineStore('clinica', () => {
     guardarCatalogoCirugia,
     registrarNuevaCirugia,
     marcarAlertaAtendida,
+    marcarReporteAnsiedadRevisado,
     iniciarSuscripcionRealtime,
   };
 });

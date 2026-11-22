@@ -1,11 +1,12 @@
 """
 Microservicio Local de Síntesis de Voz Neuronal con Edge-TTS
-Plataforma: Ecosistema Phygital Inclusivo Tech-and-Touch
+Plataforma: Ecosistema Phygital Inclusivo PreCare
 Voz por defecto: es-CO-SalomeNeural (Acento colombiano cálido, empático y preoperatorio)
 """
 
 import sys
 import asyncio
+from collections import OrderedDict
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +38,9 @@ app.add_middleware(
 )
 
 VOZ_DEFAULT = "es-CO-SalomeNeural"
-RATE_DEFAULT = "+18%" # Ritmo ágil y natural para mayor fluidez conversacional
+RATE_DEFAULT = "+12%" # Ritmo cálido, natural y claro para llamadas preoperatorias
+TTS_CACHE_MAX_SIZE = 80
+TTS_CACHE: "OrderedDict[tuple[str, str, str, str], bytes]" = OrderedDict()
 
 class TTSRequest(BaseModel):
     text: str
@@ -64,10 +67,24 @@ async def list_recommended_voices():
         {"id": "es-ES-ElviraNeural", "name": "Elvira (España - Clara/Profesional)", "recommended": False},
     ]
 
+async def _synthesize_edge_tts(text: str, voice: str, rate: str, pitch: str) -> bytes:
+    communicate = edge_tts.Communicate(
+        text=text,
+        voice=voice,
+        rate=rate,
+        pitch=pitch
+    )
+    audio_chunks = []
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio_chunks.append(chunk["data"])
+    return b"".join(audio_chunks)
+
 @app.post("/api/tts")
 async def generate_speech(payload: TTSRequest):
     """
     Genera el archivo de audio MP3 a partir del texto suministrado usando Microsoft Edge Neural TTS.
+    Incluye caché LRU en memoria y reintento automático para máxima estabilidad.
     """
     clean_text = payload.text.strip()
     if not clean_text:
@@ -77,41 +94,52 @@ async def generate_speech(payload: TTSRequest):
     rate = payload.rate or RATE_DEFAULT
     pitch = payload.pitch or "+0Hz"
 
-    try:
-        communicate = edge_tts.Communicate(
-            text=clean_text,
-            voice=voice,
-            rate=rate,
-            pitch=pitch
-        )
-
-        audio_chunks = []
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_chunks.append(chunk["data"])
-
-        if not audio_chunks:
-            raise HTTPException(status_code=500, detail="No se generaron datos de audio desde edge-tts.")
-
-        audio_bytes = b"".join(audio_chunks)
-
+    cache_key = (clean_text, voice, rate, pitch)
+    if cache_key in TTS_CACHE:
+        TTS_CACHE.move_to_end(cache_key)
         return Response(
-            content=audio_bytes,
+            content=TTS_CACHE[cache_key],
             media_type="audio/mpeg",
             headers={
                 "Content-Disposition": "inline; filename=sofi_speech.mp3",
                 "Cache-Control": "no-cache",
                 "X-TTS-Voice": voice,
                 "X-TTS-Rate": rate,
+                "X-TTS-Cache": "HIT",
             }
         )
 
-    except Exception as e:
-        print(f"[TTS-Error] Falla al sintetizar voz: {e}", file=sys.stderr)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error interno en síntesis neuronal: {str(e)}"
-        )
+    last_err = None
+    for attempt in range(2):
+        try:
+            audio_bytes = await _synthesize_edge_tts(clean_text, voice, rate, pitch)
+            if audio_bytes:
+                TTS_CACHE[cache_key] = audio_bytes
+                if len(TTS_CACHE) > TTS_CACHE_MAX_SIZE:
+                    TTS_CACHE.popitem(last=False)
+
+                return Response(
+                    content=audio_bytes,
+                    media_type="audio/mpeg",
+                    headers={
+                        "Content-Disposition": "inline; filename=sofi_speech.mp3",
+                        "Cache-Control": "no-cache",
+                        "X-TTS-Voice": voice,
+                        "X-TTS-Rate": rate,
+                        "X-TTS-Cache": "MISS",
+                    }
+                )
+            last_err = RuntimeError("No se generaron datos de audio desde edge-tts.")
+        except Exception as e:
+            last_err = e
+            if attempt == 0:
+                await asyncio.sleep(0.25)
+
+    print(f"[TTS-Error] Falla al sintetizar voz tras reintento: {last_err}", file=sys.stderr)
+    raise HTTPException(
+        status_code=500,
+        detail=f"Error interno en síntesis neuronal: {str(last_err)}"
+    )
 
 if __name__ == "__main__":
     print(f"==================================================")

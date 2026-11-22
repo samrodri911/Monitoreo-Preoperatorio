@@ -179,7 +179,7 @@ INDICACIONES CLÍNICAS PERSONALIZADAS DEL CIRUJANO TRATANTE (${cirugia.medico_tr
 (IMPORTANTE: Ten muy presente esta nota clínica personalizada cuando respondas sobre medicamentos, patologías de base, alergias o cuidados específicos de ${primerNombre}).\n`
       : '';
 
-    return `Eres "Sofi", el Asistente Clínico Virtual del Ecosistema Prequirúrgico Inclusivo "Tech-and-Touch". Tu propósito es acompañar, educar, contener emocionalmente y guiar al paciente antes de su cirugía para mitigar la ansiedad y prevenir cancelaciones quirúrgicas evitables.
+    return `Eres "Sofi", el Asistente Clínico Virtual del Ecosistema Prequirúrgico Inclusivo "PreCare". Tu propósito es acompañar, educar, contener emocionalmente y guiar al paciente antes de su cirugía para mitigar la ansiedad y prevenir cancelaciones quirúrgicas evitables.
 
 FICHA CLÍNICA ESPECÍFICA DEL PACIENTE ACTUAL:
 - Nombre: ${paciente?.nombre_completo || 'Paciente'}

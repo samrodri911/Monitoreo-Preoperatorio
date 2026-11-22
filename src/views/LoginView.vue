@@ -255,7 +255,7 @@ async function accesoRapidoMedico(email: string, passwordDemo = 'Clinica2026*') 
             Ecosistema Phygital Prequirúrgico
           </span>
           <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Tech-and-Touch
+            PreCare
           </h1>
         </div>
       </div>
@@ -741,7 +741,7 @@ async function accesoRapidoMedico(email: string, passwordDemo = 'Clinica2026*') 
     </main>
 
     <footer class="max-w-5xl w-full mx-auto pt-6 text-center text-xs text-slate-500">
-      Tech-and-Touch • Prevención de Cancelaciones Quirúrgicas y Mitigación de Ansiedad Preoperatoria
+      PreCare • Prevención de Cancelaciones Quirúrgicas y Mitigación de Ansiedad Preoperatoria
     </footer>
   </div>
 </template>
